@@ -8,6 +8,8 @@ use Digest::MD5 qw(md5);
 use File::Slurp;
 use Data::Dump qw(dump);
 
+my $version = "0.0.1";
+
 my $config = LoadFile('config.yaml');
 if (!$config) {
     say "error: unable to find config.yaml\n";
@@ -49,6 +51,10 @@ my @resolved_syncs = ();
 my $command = $ARGV[0];
 
 switch($command) {
+    case "version" {
+        say "kubycat version $version";
+        say "written by Sheldon Juncker <sheldon\@dreamcloud.app>";
+    }
     case "watch" {
     # Start the Server
     my %file_digests = ();
@@ -194,10 +200,18 @@ switch($command) {
         die "error: failed to connect to server on port $port" unless $socket;
         print $socket $file;
     }
+    case "help" {
+        help();
+        exit 0;
+    }
     else {
-        say "error: kubycat only supports the 'watch' and 'sync' commands.\n";
+        help();
         exit 1;
     }
+}
+
+sub help {
+    say "usage: kubycat.pl watch|sync [options]";
 }
 
 sub get_kubectl_delete_command {
