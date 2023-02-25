@@ -1,4 +1,5 @@
 kubycat:
+  config:
   context: minikube
   namespace: elsewhere
   port: 1273
@@ -13,7 +14,6 @@ kubycat:
         - public
         - src
         - templates
-        - vendor
         - .env
         - composer.json
         - composer.lock
@@ -21,3 +21,13 @@ kubycat:
       to: /srv/api
       pod: ""
       pod-label: tier=php
+      shell: /bin/sh
+    - name: dummy
+      base: /home/sheldon/elsewhere/backend/dummy
+      namespace: ""
+      from:
+        - dummy
+      to: /srv/dummy
+      pod: ""
+      pod-label: tier=php
+      shell: /bin/sh
