@@ -69,19 +69,14 @@ switch($command) {
         my $pod = $sync_config{"pod"};
         my $pod_label = $sync_config{"pod-label"};
 
-
         if (!$pod && !$pod_label) {
             say "error: use of sync without pod or pod-label set";
             exit 1;
         }
 
         my @resolved_froms = ();
-        dump(@froms);
-        foreach ( @froms ) {
-            #exit 1;
-            my $from = $_;
-            say "from: $_";
-            my $relative = substr($from, 0, 1) eq "/";
+        foreach my $from ( @froms ) {
+            my $relative = substr($from, 0, 1) ne "/";
             if ($relative && !$base) {
                 say "error: use of relative path $from without base path set";
                 exit 1;
