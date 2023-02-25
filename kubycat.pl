@@ -1,5 +1,6 @@
 use warnings;
 use strict;
+use experimental 'smartmatch';
 use YAML::XS 'LoadFile';
 use feature 'say';
 use Switch;
@@ -93,7 +94,7 @@ switch($command) {
             say "error: use of sync without base path set\n";
             exit 1;
         }
-        if (substr($base, 0, 1) ne "/") {
+        if (!(substr($base, 0, 1) ~~ ["/", "\\"])) {
             say "error: use of relative path within base is not allowed\n";
             exit;
         }
@@ -102,7 +103,7 @@ switch($command) {
             say "error: use of sync without to path set\n";
             exit 1;
         }
-        if (substr($to, 0, 1) ne "/") {
+        if (!(substr($to, 0, 1) ~~ ["/", "\\"])) {
             say "error: use of relative path within to is not allowed\n";
             exit;
         }
@@ -119,7 +120,7 @@ switch($command) {
 
         my @resolved_froms = ();
         foreach my $from ( @froms ) {
-            if (substr($from, 0, 1) eq "/") {
+            if (substr($from, 0, 1) ~~ ["/", "\\"]) {
                 say "error: use of absolute path in sync.from is not allowed\n";
                 exit 1;
             }
@@ -325,7 +326,7 @@ sub get_sync {
             # if the file is exactly what we are looking for
             # or if the file is deeper inside of the sync path
             # the first one wins--not the closest one
-            if ($file eq $from or ($from eq substr($file, 0, length($from)) and substr($file, length($from), 1) eq "/")) {
+            if ($file eq $from or ($from eq substr($file, 0, length($from)) and substr($file, length($from), 1) ~~ ["/", "\\"])) {
                 return %sync_config;
             }
         }
