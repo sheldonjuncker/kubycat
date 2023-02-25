@@ -19,7 +19,7 @@ kubycat:
         - composer.lock
         - symfony.lock
       to: /srv/api
-      pod: ""
+      pod: "elsewhere-php-7845cf94cc-jzj6f"
       pod-label: tier=php
       shell: /bin/sh
     - name: dummy

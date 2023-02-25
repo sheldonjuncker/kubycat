@@ -145,7 +145,6 @@ switch($command) {
         print "listening to localhost on port $port...\n";
         while (1) {
         my $new_socket = $socket->accept();
-        say "got a connection!\n";
         while(<$new_socket>)
         {
             my $file = $_;
@@ -203,7 +202,7 @@ switch($command) {
 }
 
 sub get_kubectl_delete_command {
-    my %sync = %{$_[0]};
+    my %sync = @_;
     my $command = "kubectl";
 
     if ($kube_context) {
@@ -221,7 +220,6 @@ sub get_kubectl_delete_command {
 }
 
 sub get_kubectl_copy_command {
-    dump(@_);
     my %sync = @_;
     my $command = "kubectl";
 
@@ -239,16 +237,17 @@ sub get_kubectl_copy_command {
 # Deletes a file in the Kubernetes cluster
 sub delete_file {
     my $file = $_[0];
-    my %sync = %$_[1];
+    my %sync = %{$_[1]};
     my $kubectl = get_kubectl_delete_command(%sync);
     my $pod = $sync{"pod"};
     my $shell = $sync{"shell"};
     my $base = $sync{"base"};
     my $to = $sync{"to"};
-    my $relative_file = substr($file, length($base));
+    my $relative_file = substr($file, length($base) + 1);
     my $remote_file = "$to/$relative_file";
     my $command = "$kubectl -it $pod -- $shell -c \"rm -Rf $remote_file\"";
     say "$command\n";
+    system($command);
 }
 
 sub copy_file {
@@ -264,6 +263,7 @@ sub copy_file {
     my $remote_file = "$to/$relative_file";
     my $command = "$kubectl cp $file $namespace/$pod:$remote_file";
     say "$command\n";
+    system($command);
 }
 
 sub get_sync {
