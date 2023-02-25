@@ -136,7 +136,6 @@ switch($command) {
     --event MovedTo \\
     --event OwnerModified \\
     --event AttributeModified \\
-    --latency 3 \\
 | xargs -I {} perl ./kubycat.pl sync {} &";
         say $command;
         system($command);
@@ -234,20 +233,55 @@ sub get_kubectl_copy_command {
     return $command;
 }
 
+sub get_kubectl_pods_command {
+    # kubectl get pods -n elsewhere -l tier=php -o custom-columns=NAME:.metadata.name --no-headers
+    my %sync = @_;
+    my $command = "kubectl get pods";
+    if ($kube_context) {
+        $command .= " --context $kube_context";
+    }
+
+    if ($kube_config) {
+        $command .= " --kube-config $kube_config";
+    }
+
+    $command .= " --namespace " . $sync{"namespace"};
+    $command .= " -l " . $sync{"pod-label"};
+    $command .= " -o custom-columns=NAME:.metadata.name --no-headers";
+    return $command;
+}
+
+sub get_pods {
+    my %sync = @_;
+    my $pod = $sync{"pod"};
+    my $label = $sync{"label"};
+    if ($pod) {
+        return ($pod);
+    } else {
+        my $command = get_kubectl_pods_command(%sync);
+        say "$command\n";
+        my @pods = `$command`;
+        chomp @pods;
+        return @pods;
+    }
+}
+
 # Deletes a file in the Kubernetes cluster
 sub delete_file {
     my $file = $_[0];
     my %sync = %{$_[1]};
     my $kubectl = get_kubectl_delete_command(%sync);
-    my $pod = $sync{"pod"};
     my $shell = $sync{"shell"};
     my $base = $sync{"base"};
     my $to = $sync{"to"};
     my $relative_file = substr($file, length($base) + 1);
     my $remote_file = "$to/$relative_file";
-    my $command = "$kubectl -it $pod -- $shell -c \"rm -Rf $remote_file\"";
-    say "$command\n";
-    system($command);
+    my @pods = get_pods(%sync);
+    foreach my $pod (@pods) {
+        my $command = "$kubectl -it $pod -- $shell -c \"rm -Rf $remote_file\"";
+        say "$command\n";
+        system($command);
+    }
 }
 
 sub copy_file {
@@ -255,15 +289,17 @@ sub copy_file {
     my %sync = %{$_[1]};
     my $namespace = $sync{"namespace"};
     my $kubectl = get_kubectl_copy_command(%sync);
-    my $pod = $sync{"pod"};
     my $shell = $sync{"shell"};
     my $base = $sync{"base"};
     my $to = $sync{"to"};
     my $relative_file = substr($file, length($base) + 1);
     my $remote_file = "$to/$relative_file";
-    my $command = "$kubectl $file $namespace/$pod:$remote_file";
-    say "$command\n";
-    system($command);
+    my @pods = get_pods(%sync);
+    foreach my $pod (@pods) {
+        my $command = "$kubectl $file $namespace/$pod:$remote_file";
+        say "$command\n";
+        system($command);
+    }
 }
 
 sub get_sync {

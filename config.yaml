@@ -6,7 +6,7 @@ kubycat:
   sync:
     - name: api
       base: /home/sheldon/elsewhere/backend/api
-      namespace: ""
+      namespace:
       from:
         - config
         - fixtures
@@ -19,15 +19,15 @@ kubycat:
         - composer.lock
         - symfony.lock
       to: /srv/api
-      pod: "elsewhere-php-7845cf94cc-jzj6f"
+      pod: elsewhere-php-85769c9bcf-2hsks
       pod-label: tier=php
       shell: /bin/sh
     - name: dummy
       base: /home/sheldon/elsewhere/backend/dummy
-      namespace: ""
+      namespace:
       from:
         - dummy
       to: /srv/dummy
-      pod: ""
+      pod:
       pod-label: tier=php
       shell: /bin/sh
