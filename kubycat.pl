@@ -157,7 +157,7 @@ switch($command) {
             my @file_stat = stat($file);
             if(@file_stat == 0) {
                 my $status = $file_digests{$file};
-                if ($status eq "DELETED") {
+                if ($status and $status eq "DELETED") {
                     `echo SKIP-DELETE:$file >> sync.log`;
                 } else {
                     `echo DELETE:$file >> sync.log`;
@@ -203,32 +203,32 @@ switch($command) {
 
 sub get_kubectl_delete_command {
     my %sync = @_;
-    my $command = "kubectl";
+    my $command = "kubectl exec ";
 
     if ($kube_context) {
-        $command .= " --context=$kube_context";
+        $command .= " --context $kube_context";
     }
 
     if ($kube_config) {
-        $command .= " --kube-config=$kube_config";
+        $command .= " --kube-config $kube_config";
     }
 
     my $namespace = $sync{"namespace"};
-    $command .= " --namespace=$namespace";
+    $command .= " --namespace $namespace";
 
     return $command;
 }
 
 sub get_kubectl_copy_command {
     my %sync = @_;
-    my $command = "kubectl";
+    my $command = "kubectl cp";
 
     if ($kube_context) {
-        $command .= " --context=$kube_context";
+        $command .= " --context $kube_context";
     }
 
     if ($kube_config) {
-        $command .= " --kube-config=$kube_config";
+        $command .= " --kube-config $kube_config";
     }
 
     return $command;
@@ -261,7 +261,7 @@ sub copy_file {
     my $to = $sync{"to"};
     my $relative_file = substr($file, length($base) + 1);
     my $remote_file = "$to/$relative_file";
-    my $command = "$kubectl cp $file $namespace/$pod:$remote_file";
+    my $command = "$kubectl $file $namespace/$pod:$remote_file";
     say "$command\n";
     system($command);
 }
