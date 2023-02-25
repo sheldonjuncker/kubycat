@@ -1,0 +1,23 @@
+kubycat:
+  context: minikube
+  namespace: elsewhere
+  port: 1273
+  sync:
+    - name: api
+      base: /home/sheldon/elsewhere/backend/api
+      namespace: ""
+      from:
+        - config
+        - fixtures
+        - migrations
+        - public
+        - src
+        - templates
+        - vendor
+        - .env
+        - composer.json
+        - composer.lock
+        - symfony.lock
+      to: /srv/api
+      pod: ""
+      pod-label: tier=php
