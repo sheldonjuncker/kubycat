@@ -1,6 +1,8 @@
 [View Kubycat on GitHub](https://github.com/sheldonjuncker/kubycat)
 
-<img src="https://www.kubycat.info/kubycat.jpg" alt="" width="75" style="float: right">
+<img src="https://www.kubycat.info/kubycat.jpg" alt="" width="75" style="float: right" />
+
+<img src="public/kubycat.jpg" alt="" width="75" style="float: right" />
 
 # kubycat 
 A small perl script for syncing files into a Kubernetes cluster.
