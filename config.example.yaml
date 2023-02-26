@@ -1,0 +1,34 @@
+kubycat:
+  # The Kubernetes config file to use
+  config: /home/johndoe/.kube/config
+  # The Kubernetes context to use
+  context: minikube
+  # The Kubernetes namespace to use
+  # This can be specified or overridden for each individual sync
+  namespace: default
+  # The port to use for the kubycat file syncing server
+  port: 1273
+  # Individual sync configs
+  sync:
+    # The name of the sync
+    - name: test
+      # The base directory to sync from
+      base: /home/johndoe/test/
+      # The Kubernetes namespace to use
+      # leave blank to use the global namespace
+      namespace: other
+      # The file paths to sync
+      # Note that all syncing is done recursively
+      from:
+        - src
+        - config
+        - index.php
+      # The remote directory to sync into
+      to: /remote/server
+      # The Kubernetes pod to sync into
+      pod: pod-name
+      # The Kubernetes pod label to use for finding the pod(s) to sync into
+      # This can be used instead of specifying a single pod
+      pod-label: key=value
+      # The shell command to run in the container for deleting files
+      shell: /bin/sh
