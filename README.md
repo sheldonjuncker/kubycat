@@ -1,6 +1,6 @@
 [View Kubycat on GitHub](https://github.com/sheldonjuncker/kubycat)
 
-![](https://www.kubycat.info/kubycat.jpg|width=200)
+![](https://www.kubycat.info/kubycat.jpg | width=200)
 
 # kubycat 
 A small perl script for syncing files into a Kubernetes cluster.
