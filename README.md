@@ -2,7 +2,7 @@
 
 <img src="https://www.kubycat.info/kubycat.jpg" alt="" width="75" style="float: right" />
 
-<img src="public/kubycat.jpg" alt="" width="75" style="float: right" />
+<img src="public/kubycat.jpg" alt="Kubycat" width="75" />
 
 # kubycat 
 A small perl script for syncing files into a Kubernetes cluster.
