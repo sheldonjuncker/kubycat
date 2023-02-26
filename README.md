@@ -1,8 +1,31 @@
 # kubycat
-A small perl package for syncing files into a Kubernetes cluster.
+A small perl script for syncing files into a Kubernetes cluster.
+
+```perl
+my $name = kubycat
+my $version = 0.0.1
+my $author = Sheldon Juncker <sheldon@dreamcloud.app>
+my $github = https://github.com/sheldonjuncker/kubycat
+my $license = MIT
+```
 
 ## Installation
-Kubycat requires Perl 5.10 or higher to be installed on the system.
+Kubycat requires fswatch and Perl 5.10 or higher to be installed on the system.
+Most Linux distributions come with Perl pre-installed, but if you are on Windows you will need to install it.
+You can view instructions for doing so here: https://learn.perl.org/installing/windows.html
+
+### Step 0
+_Install fswatch._
+```bash
+# Mac/Linux
+$ brew install fswatch 
+
+ # Linux
+$ apt-get install fswatch
+
+# Windows
+$ explorer "https://github.com/emcrisostomo/fswatch/blob/master/README.windows"
+```
 
 ### Step 1
 _Clone the repository._
@@ -104,7 +127,18 @@ You can view the Kubycat help by running:
 $ ./kubycat help
 ```
 
+## About
+I wrote Kubycat because I couldn't get `ksync` to work on my machine and I wanted a simple way to sync files into my minikube Kubernetes cluster for local development. I played around with other approaches such as `Skaffold`, but I found that they were too complex for my needs.
 
+The problem at hand didn't seem too difficult, so I decided to write my own solution. It's far from polished, but it works for me quite nicely, and maybe that means others will find it helpful as well.
+
+## Contributing
+This is the first version of Kubycat, so I'm aware that there are a lot of features that would be useful (file patterns, exclusions, etc.)
+I'm also guessing that there will be a handful of bugs that I haven't found yet as my use cases are pretty limited. 
+I'd be more than happy to accept pull requests for any of these features or bug fixes.
+
+## License
+MIT
 
 
 

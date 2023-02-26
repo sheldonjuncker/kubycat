@@ -1,1 +1,126 @@
-<i>Welcome to kubycat.info!</i>
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>README.md</title>
+    <link rel="stylesheet" href="https://stackedit.io/style.css" />
+</head>
+
+<body class="stackedit">
+<div class="stackedit__html"><h1 id="kubycat">kubycat</h1>
+    <p>A small perl script for syncing files into a Kubernetes cluster.</p>
+    <pre class=" language-perl"><code class="prism  language-perl"><span class="token keyword">my</span> <span class="token variable">$name</span> <span class="token operator">=</span> kubycat
+<span class="token keyword">my</span> <span class="token variable">$version</span> <span class="token operator">=</span> <span class="token vstring string">0.0.1</span>
+<span class="token keyword">my</span> <span class="token variable">$author</span> <span class="token operator">=</span> Sheldon Juncker <span class="token operator">&lt;</span>sheldon<span class="token variable">@dreamcloud</span><span class="token operator">.</span>app<span class="token operator">&gt;</span>
+<span class="token keyword">my</span> <span class="token variable">$github</span> <span class="token operator">=</span> https<span class="token punctuation">:</span><span class="token operator">//</span>github<span class="token operator">.</span>com<span class="token operator">/</span>sheldonjuncker<span class="token operator">/</span>kubycat
+<span class="token keyword">my</span> <span class="token variable">$license</span> <span class="token operator">=</span> MIT
+</code></pre>
+    <h2 id="installation">Installation</h2>
+    <p>Kubycat requires fswatch and Perl 5.10 or higher to be installed on the system.<br>
+        Most Linux distributions come with Perl pre-installed, but if you are on Windows you will need to install it.<br>
+        You can view instructions for doing so here: <a href="https://learn.perl.org/installing/windows.html">https://learn.perl.org/installing/windows.html</a></p>
+    <h3 id="step-0">Step 0</h3>
+    <p><em>Install fswatch.</em></p>
+    <pre class=" language-bash"><code class="prism  language-bash"><span class="token comment"># Mac/Linux</span>
+$ brew <span class="token function">install</span> fswatch
+
+ <span class="token comment"># Linux</span>
+$ <span class="token function">apt-get</span> <span class="token function">install</span> fswatch
+
+<span class="token comment"># Windows</span>
+$ explorer <span class="token string">"https://github.com/emcrisostomo/fswatch/blob/master/README.windows"</span>
+</code></pre>
+    <h3 id="step-1">Step 1</h3>
+    <p><em>Clone the repository.</em></p>
+    <pre class=" language-bash"><code class="prism  language-bash">$ <span class="token function">git</span> clone https://github.com/sheldonjuncker/kubycat.git
+</code></pre>
+    <h3 id="step-2">Step 2</h3>
+    <p><em>Install the CPAN modules.</em></p>
+    <p>Kubycat requires the following Perl modules:</p>
+    <ul>
+        <li>YAML::XS</li>
+        <li>IO::Socket</li>
+        <li>Digest::MD5</li>
+        <li>File::Slurp</li>
+        <li>Switch</li>
+    </ul>
+    <p>You can automatically install these modules by running the install script:</p>
+    <pre class=" language-bash"><code class="prism  language-bash">$ <span class="token function">cd</span> kubycat
+$ ./install
+</code></pre>
+    <h2 id="configuration">Configuration</h2>
+    <p>Kubycat is configured via a <code>config.yaml</code> file in the root directory of the project. An example file is provided in <code>config.example.yaml</code>.</p>
+    <pre class=" language-yaml"><code class="prism  language-yaml"><span class="token key atrule">kubycat</span><span class="token punctuation">:</span>
+  <span class="token comment"># The Kubernetes config file to use</span>
+  <span class="token key atrule">config</span><span class="token punctuation">:</span> /home/johndoe/.kube/config
+  <span class="token comment"># The Kubernetes context to use</span>
+  <span class="token key atrule">context</span><span class="token punctuation">:</span> minikube
+  <span class="token comment"># The Kubernetes namespace to use</span>
+  <span class="token comment"># This can be specified or overridden for each individual sync</span>
+  <span class="token key atrule">namespace</span><span class="token punctuation">:</span> default
+  <span class="token comment"># The port to use for the kubycat file syncing server</span>
+  <span class="token key atrule">port</span><span class="token punctuation">:</span> <span class="token number">1273</span>
+  <span class="token comment"># Individual sync configs</span>
+  <span class="token key atrule">sync</span><span class="token punctuation">:</span>
+      <span class="token comment"># The name of the sync</span>
+    <span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> test
+      <span class="token comment"># The base directory to sync from  </span>
+      <span class="token key atrule">base</span><span class="token punctuation">:</span> /home/johndoe/test/
+      <span class="token comment"># The Kubernetes namespace to use</span>
+      <span class="token comment"># leave blank to use the global namespace</span>
+      <span class="token key atrule">namespace</span><span class="token punctuation">:</span> other
+      <span class="token comment"># The file paths to sync</span>
+      <span class="token comment"># Note that all syncing is done recursively</span>
+      <span class="token key atrule">from</span><span class="token punctuation">:</span>
+        <span class="token punctuation">-</span> src
+        <span class="token punctuation">-</span> config
+        <span class="token punctuation">-</span> index.php
+      <span class="token comment"># The remote directory to sync into </span>
+      <span class="token key atrule">to</span><span class="token punctuation">:</span> /remote/server
+      <span class="token comment"># The Kubernetes pod to sync into</span>
+      <span class="token key atrule">pod</span><span class="token punctuation">:</span> pod<span class="token punctuation">-</span>name
+      <span class="token comment"># The Kubernetes pod label to use for finding the pod(s) to sync into</span>
+      <span class="token comment"># This can be used instead of specifying a single pod</span>
+      <span class="token key atrule">pod-label</span><span class="token punctuation">:</span> key=value
+      <span class="token comment"># The shell command to run in the container for deleting files</span>
+      <span class="token key atrule">shell</span><span class="token punctuation">:</span> /bin/sh
+</code></pre>
+    <p>You can copy this file to <code>config.yaml</code> and edit to suit your needs.</p>
+    <pre class=" language-bash"><code class="prism  language-bash">$ <span class="token function">mv</span> config.example.yaml config.yaml
+</code></pre>
+    <h2 id="usage">Usage</h2>
+    <p>Kubycat is a simple command-line Perl script which can be invoked via the <code>./kubycat</code> command which conveniently works in either Linux or Windows because Linux is smart and uses the <code>kubycat</code> file and Windows is silly and uses the <code>kubycat.bat</code> file.</p>
+    <p>Note: I actually have no idea if this works on Windows, but it should.</p>
+    <h3 id="syncing">Syncing</h3>
+    <p>Kubycat syncing is invoked via the <code>kubycat watch</code> command.</p>
+    <pre class=" language-bash"><code class="prism  language-bash">$ ./kubycat <span class="token function">watch</span>
+</code></pre>
+    <p>While running, Kubycat will watch the configured files for changes and sync them into the Kubernetes cluster.</p>
+    <p>Kubycat will display a list of commands that it is running as the files are synced.</p>
+    <h3 id="manual-syncing">Manual Syncing</h3>
+    <p>You can manually sync a file/folder by running:</p>
+    <pre class=" language-bash"><code class="prism  language-bash">$ ./kubycat <span class="token function">sync</span> <span class="token operator">&lt;</span>absolute_path<span class="token operator">&gt;</span>
+</code></pre>
+    <h3 id="version">Version</h3>
+    <p>You can view the current Kubycat version by running:</p>
+    <pre class=" language-bash"><code class="prism  language-bash">$ ./kubycat version
+</code></pre>
+    <h3 id="help">Help</h3>
+    <p>You can view the Kubycat help by running:</p>
+    <pre class=" language-bash"><code class="prism  language-bash">$ ./kubycat <span class="token function">help</span>
+</code></pre>
+    <h2 id="about">About</h2>
+    <p>I wrote Kubycat because I couldn’t get <code>ksync</code> to work on my machine and I wanted a simple way to sync files into my minikube Kubernetes cluster for local development. I played around with other approaches such as <code>Skaffold</code>, but I found that they were too complex for my needs.</p>
+    <p>The problem at hand didn’t seem too difficult, so I decided to write my own solution. It’s far from polished, but it works for me quite nicely, and maybe that means others will find it helpful as well.</p>
+    <h2 id="contributing">Contributing</h2>
+    <p>This is the first version of Kubycat, so I’m aware that there are a lot of features that would be useful (file patterns, exclusions, etc.)<br>
+        I’m also guessing that there will be a handful of bugs that I haven’t found yet as my use cases are pretty limited.<br>
+        I’d be more than happy to accept pull requests for any of these features or bug fixes.</p>
+    <h2 id="license">License</h2>
+    <p>MIT</p>
+</div>
+</body>
+
+</html>
