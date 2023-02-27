@@ -11,7 +11,7 @@ use Data::Dump qw(dump);
 
 my $version = "0.0.1";
 
-my $config = LoadFile('config.yaml');
+my $config = LoadFile('/etc/kubycat/config.yaml');
 if (!$config) {
     say "error: unable to find config.yaml\n";
     exit 1;
@@ -143,7 +143,7 @@ switch($command) {
     --event MovedTo \\
     --event OwnerModified \\
     --event AttributeModified \\
-| xargs -I {} perl ./kubycat.pl sync {} &";
+| xargs -I {} kubycat sync {} &";
         say $command;
         system($command);
 

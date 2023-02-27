@@ -1,2 +1,2 @@
 #! /bin/bash
-perl ./kubycat.pl "$@"
+PERL5LIB=$HOME/perl5/lib/perl5 perl /usr/local/bin/kubycat.pl "$@"

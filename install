@@ -1,7 +1,59 @@
 #! /bin/bash
+
+# exit on errors
+set -e
+
+# we want to install Perl modules in the user's home directory
+# where we have write access
+
+# install the perl modules
+echo "Installing perl modules..."
+
+# install all the modules in the user's home directory
+# the X flag tells perl to ignore the errors caused by the invalid regex it sees in the "perl command"
+# which isn't even Perl code since it's run in CPAN
+export PERL5LIB=$HOME/perl5/lib/perl5
+perl -MCPAN -eX "o conf makepl_arg INSTALL_BASE=$HOME/perl5; o conf commit"
+
 cpan -i YAML::XS
 cpan -i IO::Socket
 cpan -i Digest::MD5
 cpan -i File::Slurp
 cpan -i Data::Dump
 cpan -i Switch
+echo "OK -- modules installed."
+
+# add the kubycat pl and executable file to /usr/local/bin
+echo "Copying kubycat and kubycat.pl to /usr/local/bin..."
+sudo cp kubycat.pl /usr/local/bin/kubycat.pl
+sudo cp kubycat /usr/local/bin/kubycat
+sudo chmod +x /usr/local/bin/kubycat.pl
+sudo chmod +x /usr/local/bin/kubycat
+echo "OK -- files copied."
+
+# copy the example config file to /etc/kubycat
+echo "Copying example config file to /etc/kubycat/config.yaml..."
+sudo mkdir -p /etc/kubycat
+sudo cp config.example.yaml /etc/kubycat/config.yaml
+echo "OK -- file copied."
+
+# update the kubycat.service file with the current user
+echo "Installing the kubycat service via systemd..."
+cp kubycat.service kubycat.service.user
+sed -i "s/User=/User=$USER/" kubycat.service.user
+
+# copy the kubycat.service file to the systemd directory
+sudo cp kubycat.service.user /etc/systemd/system/kubycat.service
+rm kubycat.service.user
+
+# enable the service
+sudo systemctl enable kubycat
+
+# start the service
+sudo systemctl start kubycat
+echo "OK -- service installed."
+
+# done
+echo "Getting kubycat status..."
+sudo systemctl status kubycat
+echo "OK -- installation complete."

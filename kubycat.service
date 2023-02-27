@@ -1,0 +1,14 @@
+ [Unit]
+Description=The Kubycat Service (v0.0.1)
+After=network.target
+StartLimitIntervalSec=3
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=3
+User=
+ExecStart=/usr/local/bin/kubycat watch
+
+[Install]
+WantedBy=multi-user.target
