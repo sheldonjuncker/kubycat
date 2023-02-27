@@ -164,9 +164,9 @@ switch($command) {
             if(@file_stat == 0) {
                 my $status = $file_digests{$file};
                 if ($status and $status eq "DELETED") {
-                    `echo SKIP-DELETE:$file >> sync.log`;
+                    say "echo SKIP-DELETE:$file";
                 } else {
-                    `echo DELETE:$file >> sync.log`;
+                    say "echo DELETE:$file";
                     delete_file($file, { %sync });
                     $file_digests{$file} = "DELETED";
                 }
@@ -179,10 +179,9 @@ switch($command) {
                 my $digest = md5($data . $ctime);
                 my $old_digest = $file_digests{$file};
                 if ($old_digest && $digest && $old_digest eq $digest) {
-                    # do nothing
-                    `echo SKIP-COPY:$file >> sync.log`;
+                    say "echo SKIP-COPY:$file";
                 } else {
-                    `echo COPY:$file >> sync.log`;
+                    say "echo COPY:$file";
                     copy_file($file, { %sync });
                     $file_digests{$file} = $digest;
                 }
@@ -192,7 +191,7 @@ switch($command) {
     }
     case "sync" {
         my $file = $ARGV[1];
-        `echo SYNC:$file >> sync.log`;
+        say "SYNC:$file";
         my $socket = new IO::Socket::INET (
             PeerAddr => 'localhost',
             PeerPort => $port,
