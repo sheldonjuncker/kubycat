@@ -1,14 +1,14 @@
  [Unit]
-Description=The Kubycat Service (v0.0.1)
+Description=The Kubycat Service ($VERSION)
 After=network.target
 StartLimitIntervalSec=3
 
 [Service]
 Type=simple
 Restart=always
-RestartSec=3
-User=
-ExecStart=/usr/local/bin/kubycat watch
+RestartSec=1
+User=$USER
+ExecStart=/bin/bash $INSTALL_PATH/kubycat watch --config $CONFIG_FILE
 
 [Install]
 WantedBy=multi-user.target

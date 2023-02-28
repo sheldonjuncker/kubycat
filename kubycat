@@ -1,2 +1,1 @@
-#! /bin/bash
-PERL5LIB=$HOME/perl5/lib/perl5 perl /usr/local/bin/kubycat.pl "$@"
+perl /usr/local/bin/kubycat.pl "$@"

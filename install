@@ -3,51 +3,117 @@
 # exit on errors
 set -e
 
-# we want to install Perl modules in the user's home directory
-# where we have write access
+VERSION=$(git describe --tags --abbrev=0)
 
-# install the perl modules
-echo "Installing perl modules..."
+echo "This is the installer for Kubycat $VERSION."
+echo ""
+echo "It will guide you through the process of installing the required Perl modules, the kubycat configuration files, kubycat executables, and the Kubycat systemd service."
+echo ""
+echo "!!! This should work on most Linux systems without any issues, but it has only been tested on Ubuntu."
+echo "!!! The systemd component will not work on MAC and should be skipped, but we're working on supporting launchd"
+echo ""
+echo "Please report problems on GitHub at https://github.com/sheldonjuncker/kubycat/issues"
+echo ""
+echo "Note: this script requires root privileges."
+echo ""
 
-# install all the modules in the user's home directory
-# the X flag tells perl to ignore the errors caused by the invalid regex it sees in the "perl command"
-# which isn't even Perl code since it's run in CPAN
-export PERL5LIB=$HOME/perl5/lib/perl5
-perl -MCPAN -eX "o conf makepl_arg INSTALL_BASE=$HOME/perl5; o conf commit"
+# Ask if the user wants to install the Perl modules
+echo -n "Install Perl modules: (y/n) "
+read -r install_modules
 
-cpan -i YAML::XS
-cpan -i IO::Socket
-cpan -i Digest::MD5
-cpan -i File::Slurp
-cpan -i Data::Dump
-cpan -i Switch
-echo "OK -- modules installed."
+if [ "$install_modules" = "y" ]; then
+   # Ask for file path to install modules to
+    echo -n "Module install path (default): "
+    read -r module_path
+    if [ "$module_path" != "" ]; then
+        export PERL5LIB=$module_path/lib/perl5
+        perl -MCPAN -eX "o conf makepl_arg INSTALL_BASE=$module_path; o conf commit"
+    fi
+    echo "Installing Perl modules..."
+    cpan -i YAML::XS
+    cpan -i IO::Socket
+    cpan -i Digest::MD5
+    cpan -i File::Slurp
+    cpan -i Data::Dump
+    cpan -i Switch
 
-# add the kubycat pl and executable file to /usr/local/bin
-echo "Copying kubycat and kubycat.pl to /usr/local/bin..."
-sudo cp kubycat.pl /usr/local/bin/kubycat.pl
-sudo cp kubycat /usr/local/bin/kubycat
-sudo chmod +x /usr/local/bin/kubycat.pl
-sudo chmod +x /usr/local/bin/kubycat
-echo "OK -- files copied."
+    if [ "$module_path" != "" ]; then
+        echo "For non-service use, you may need to add the following to your .bashrc file:"
+        echo "export PERL5LIB=$module_path/lib/perl5"
+    fi
 
-# copy the example config file to /etc/kubycat
-echo "Copying example config file to /etc/kubycat/config.yaml..."
-sudo mkdir -p /etc/kubycat
-sudo cp -n config.example.yaml /etc/kubycat/config.yaml
+    echo "OK -- Perl modules installed."
+else
+    echo "OK -- skipping module installation."
+fi
+echo ""
+
+# ask for the path to the kubycat config
+echo -n "Kubycat config path (/etc/kubycat): "
+read -r config_path
+if [ "$config_path" = "" ]; then
+    config_path="/etc/kubycat"
+fi
+echo "Copying example config file to $config_path/config.yaml..."
+sudo mkdir -p $config_path
+sudo cp -n config.example.yaml $config_path/config.yaml
 echo "OK -- file copied."
+echo ""
+
+# ask for the installation path for kubycat and kubycat.pl
+echo -n "Kubycat install path (/usr/local/bin): "
+read -r install_path
+if [ "$install_path" = "" ]; then
+    install_path="/usr/local/bin"
+fi
+echo "Copying kubycat and kubycat.pl to $install_path..."
+sudo cp kubycat.pl $install_path/kubycat.pl
+sudo cp kubycat $install_path/kubycat
+if [ "$module_path" != "" ]; then
+    # add the PERLLIB5 environment variable to the beginning of the kubycat file
+    KUBYCAT_TMP=`echo -n "PERL5LIB=$PERL5LIB "; cat $install_path/kubycat`
+    echo "$KUBYCAT_TMP" | sudo tee $install_path/kubycat
+fi
+sudo chmod +x $install_path/kubycat.pl
+sudo chmod +x $install_path/kubycat
+echo "OK -- files copied."
+echo ""
+
+
+# Ask if the user wants to install the kubycat service
+echo -n "Install Kubycat as a systemd service:  (y/n) "
+read -r install_service
+if [ "$install_service" != "y" ]; then
+    echo "OK -- service not installed."
+    echo "Installation complete."
+    exit 0
+fi
 
 # update the kubycat.service file with the current user
 echo "Installing the kubycat service via systemd..."
-cp kubycat.service kubycat.service.user
-sed -i "s/User=/User=$USER/" kubycat.service.user
+cp kubycat.service kubycat.service.tmp
+
+# replace the version
+sed -i "s/\$VERSION/$VERSION/" kubycat.service.tmp
+
+# replace the install path
+sed -i "s|\$INSTALL_PATH|$install_path|" kubycat.service.tmp
+
+# replace the user with the current user
+sed -i "s/\$USER/$USER/" kubycat.service.tmp
+
+# replace the config file
+sed -i "s|\$CONFIG_FILE|$config_path/config.yaml|" kubycat.service.tmp
 
 # copy the kubycat.service file to the systemd directory
-sudo cp kubycat.service.user /etc/systemd/system/kubycat.service
-rm kubycat.service.user
+sudo cp kubycat.service.tmp /etc/systemd/system/kubycat.service
+rm kubycat.service.tmp
 
 # enable the service
 sudo systemctl enable kubycat
+
+# reload the systemd daemon
+sudo systemctl daemon-reload
 
 # start the service
 sudo systemctl start kubycat

@@ -11,7 +11,17 @@ use Data::Dump qw(dump);
 
 my $version = "0.0.1";
 
-my $config = LoadFile('/etc/kubycat/config.yaml');
+# read the --config argument
+my $config_file = "/etc/kubycat/config.yaml";
+for (my $i = 0; $i < @ARGV; $i++) {
+    if ($ARGV[$i] eq "--config") {
+        $config_file = $ARGV[$i + 1];
+        splice(@ARGV, $i, 2);
+        last;
+    }
+}
+
+my $config = LoadFile($config_file);
 if (!$config) {
     say "error: unable to find config.yaml\n";
     exit 1;
@@ -227,6 +237,7 @@ switch($command) {
                         my @pods = get_pods(%sync);
                         foreach my $pod (@pods) {
                             my $command = "$kubectl $pod -- $post_sync_remote";
+                            $command =~ s|\$SYNCED_FILE|$file|g;
                             say "$command\n";
                             system($command);
                         }
@@ -238,7 +249,9 @@ switch($command) {
                             exit 0;
                         }
                         say "POST-SYNC-LOCAL:$file";
-                        say "$post_sync_local\n";
+                        my $command = $post_sync_local;
+                        $command =~ s|\$SYNCED_FILE|$file|g;
+                        say "$command\n";
                         system($post_sync_local);
                     }
                 }
