@@ -47,9 +47,38 @@ if (@syncs == 0) {
     exit 0;
 }
 
+my %file_digests = ();
 my @resolved_syncs = ();
 
 my $command = $ARGV[0];
+
+sub get_file_status {
+    my $file = shift;
+    my @file_stat = stat($file);
+    if(@file_stat == 0) {
+        my $status = $file_digests{$file};
+        if ($status and $status eq "DELETED") {
+            return 'UNCHANGED';
+        } else {
+            $file_digests{$file} = "DELETED";
+            return 'DELETED';
+        }
+    } else {
+        # Only sync a file if either it's content hash or ctime has changed
+        # (note: ctime can actually change without contents/metadata really changing
+        # i.e. when a file is saved with the same contents, it's technically "modified" and "changed")
+        my $ctime = $file_stat[10];
+        my $data = read_file($file);
+        my $digest = md5($data . $ctime);
+        my $old_digest = $file_digests{$file};
+        if ($old_digest && $digest && $old_digest eq $digest) {
+            return 'UNCHANGED';
+        } else {
+            $file_digests{$file} = $digest;
+            return 'CHANGED';
+        }
+    }
+}
 
 switch($command) {
     case "version" {
@@ -58,7 +87,6 @@ switch($command) {
     }
     case "watch" {
         # Start the Server
-        my %file_digests = ();
         my $socket = new IO::Socket::INET (
             LocalHost => 'localhost',
             LocalPort => $port,
@@ -174,6 +202,8 @@ switch($command) {
                     next;
                 }
 
+                say "CHANGED:$file";
+
                 my $to = $sync{"to"};
                 if ($to) {
                     if ($status eq 'DELETED') {
@@ -182,10 +212,8 @@ switch($command) {
                         next;
                     } else {
                         say "SYNC-UPDATE:$file";
+                        copy_file($file, { %sync });
                     }
-                } else {
-                    say "CHANGED:$file";
-                    copy_file($file, { %sync });
                 }
 
                 # After sync/change, run local and remote commands if defined
@@ -198,7 +226,7 @@ switch($command) {
                         my $kubectl = get_kubectl_delete_command(%sync);
                         my @pods = get_pods(%sync);
                         foreach my $pod (@pods) {
-                            my $command = "$kubectl -it $pod -- $post_sync_remote";
+                            my $command = "$kubectl $pod -- $post_sync_remote";
                             say "$command\n";
                             system($command);
                         }
@@ -242,34 +270,6 @@ sub help {
     say "usage: kubycat.pl watch|sync [options]";
 }
 
-sub get_file_status() {
-    my $file = shift;
-    my @file_stat = stat($file);
-    if(@file_stat == 0) {
-        my $status = $file_digests{$file};
-        if ($status and $status eq "DELETED") {
-            return 'UNCHANGED';
-        } else {
-            $file_digests{$file} = "DELETED";
-            return 'DELETED';
-        }
-    } else {
-        # Only sync a file if either it's content hash or ctime has changed
-        # (note: ctime can actually change without contents/metadata really changing
-        # i.e. when a file is saved with the same contents, it's technically "modified" and "changed")
-        my $ctime = $file_stat[10];
-        my $data = read_file($file);
-        my $digest = md5($data . $ctime);
-        my $old_digest = $file_digests{$file};
-        if ($old_digest && $digest && $old_digest eq $digest) {
-            return 'UNCHANGED';
-        } else {
-            $file_digests{$file} = $digest;
-            return 'CHANGED';
-        }
-    }
-}
-
 sub get_kubectl_delete_command {
     my %sync = @_;
     my $command = "kubectl exec ";
@@ -294,10 +294,12 @@ sub get_kubectl_copy_command {
     my %sync = @_;
     my $command = "kubectl cp";
 
+    my $kube_context = $sync{"context"};
     if ($kube_context) {
         $command .= " --context $kube_context";
     }
 
+    my $kube_config = $sync{"config"};
     if ($kube_config) {
         $command .= " --kube-config $kube_config";
     }
@@ -309,10 +311,13 @@ sub get_kubectl_pods_command {
     # kubectl get pods -n elsewhere -l tier=php -o custom-columns=NAME:.metadata.name --no-headers
     my %sync = @_;
     my $command = "kubectl get pods";
+
+    my $kube_context = $sync{"context"};
     if ($kube_context) {
         $command .= " --context $kube_context";
     }
 
+    my $kube_config = $sync{"config"};
     if ($kube_config) {
         $command .= " --kube-config $kube_config";
     }
@@ -350,7 +355,7 @@ sub delete_file {
     my $remote_file = "$to/$relative_file";
     my @pods = get_pods(%sync);
     foreach my $pod (@pods) {
-        my $command = "$kubectl -it $pod -- $shell -c \"rm -Rf $remote_file\"";
+        my $command = "$kubectl $pod -- $shell -c \"rm -Rf $remote_file\"";
         say "$command\n";
         system($command);
     }
@@ -370,12 +375,7 @@ sub copy_file {
     foreach my $pod (@pods) {
         my $command = "$kubectl $file $namespace/$pod:$remote_file";
         say "$command\n";
-        my $result = system($command);
-        if ($result != 0) {
-            say "error: failed to copy file $file to $namespace/$pod:$remote_file";
-            say "restarting kubycat...";
-            exit 1;
-        }
+        system($command);
     }
 }
 
