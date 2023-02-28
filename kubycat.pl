@@ -31,10 +31,10 @@ if (!$port) {
 }
 
 # Kubernetes config file
-my $kube_config = $config->{"config"};
+my $kube_global_config = $config->{"config"};
 
 # Kubernetes context
-my $kube_context = $config->{"context"};
+my $kube_global_context = $config->{"context"};
 
 # Kubernetes global namesapce
 my $kube_global_namespace = $config->{"namespace"};
@@ -57,80 +57,88 @@ switch($command) {
         say "written by Sheldon Juncker <sheldon\@dreamcloud.app>";
     }
     case "watch" {
-    # Start the Server
-    my %file_digests = ();
-    my $socket = new IO::Socket::INET (
-        LocalHost => 'localhost',
-        LocalPort => $port,
-        Proto => 'tcp',
-        Listen => 1,
-        Reuse => 1,
-    );
-    die "error: failed to start server on port $port" unless $socket;
+        # Start the Server
+        my %file_digests = ();
+        my $socket = new IO::Socket::INET (
+            LocalHost => 'localhost',
+            LocalPort => $port,
+            Proto => 'tcp',
+            Listen => 1,
+            Reuse => 1,
+        );
+        die "error: failed to start server on port $port" unless $socket;
 
-    # Start Watching
-    my @watches = ();
-    foreach ( @syncs ) {
-        my %sync_config = %$_;
-        my $name = $sync_config{"name"};
-        my $base = $sync_config{"base"};
-        my $namespace = $sync_config{"namespace"};
-        my @froms = @{$sync_config{"from"}};
-        my $to = $sync_config{"to"};
-        my $pod = $sync_config{"pod"};
-        my $pod_label = $sync_config{"pod-label"};
-        my $shell = $sync_config{"shell"};
+        # Start Watching
+        my @watches = ();
+        foreach ( @syncs ) {
+            my %sync_config = %$_;
+            my $name = $sync_config{"name"};
+            my $base = $sync_config{"base"};
+            my $namespace = $sync_config{"namespace"};
+            my $kube_config = $sync_config{"config"};
+            my $kube_context = $sync_config{"context"};
+            my @froms = @{$sync_config{"from"}};
+            my $to = $sync_config{"to"};
+            my $pod = $sync_config{"pod"};
+            my $pod_label = $sync_config{"pod-label"};
+            my $shell = $sync_config{"shell"};
 
-        if (!$namespace && $kube_global_namespace) {
-            $namespace = $kube_global_namespace;
-        }
-        if (!$namespace) {
-            say "error: either a global namespace or sync namespace must be set\n";
-            exit 1;
-        }
-        $sync_config{"namespace"} = $namespace;
-
-        if (!$base) {
-            say "error: use of sync without base path set\n";
-            exit 1;
-        }
-        if (!(substr($base, 0, 1) ~~ ["/", "\\"])) {
-            say "error: use of relative path within base is not allowed\n";
-            exit;
-        }
-
-        if (!$to) {
-            say "error: use of sync without to path set\n";
-            exit 1;
-        }
-        if (!(substr($to, 0, 1) ~~ ["/", "\\"])) {
-            say "error: use of relative path within to is not allowed\n";
-            exit;
-        }
-
-        if (!$pod && !$pod_label) {
-            say "error: use of sync without pod or pod-label set\n";
-            exit 1;
-        }
-
-        if (!$shell) {
-            say "error: use of sync without shell set\n";
-            exit 1;
-        }
-
-        my @resolved_froms = ();
-        foreach my $from ( @froms ) {
-            if (substr($from, 0, 1) ~~ ["/", "\\"]) {
-                say "error: use of absolute path in sync.from is not allowed\n";
+            if (!$namespace && $kube_global_namespace) {
+                $namespace = $kube_global_namespace;
+            }
+            if (!$namespace) {
+                say "error: either a global namespace or sync namespace must be set\n";
                 exit 1;
             }
-            my $file = "$base/$from";
-            push (@resolved_froms, $file);
-            push (@watches, $file);
+            $sync_config{"namespace"} = $namespace;
+
+            if (!$kube_config && $kube_global_config) {
+                $kube_config = $kube_global_config;
+            }
+            $sync_config{"config"} = $kube_config;
+
+            if (!$kube_context && $kube_global_context) {
+                $kube_context = $kube_global_context;
+            }
+            $sync_config{"context"} = $kube_context;
+
+            if (!$base) {
+                say "error: use of sync without base path set\n";
+                exit 1;
+            }
+            if (!(substr($base, 0, 1) ~~ ["/", "\\"])) {
+                say "error: use of relative path within base is not allowed\n";
+                exit;
+            }
+
+            if ($to && !(substr($to, 0, 1) ~~ ["/", "\\"])) {
+                say "error: use of relative path within to is not allowed\n";
+                exit;
+            }
+
+            if (!$pod && !$pod_label && $to) {
+                say "error: use of sync.to without pod or pod-label set\n";
+                exit 1;
+            }
+
+            if ($to && !$shell) {
+                say "error: use of sync.to without shell set\n";
+                exit 1;
+            }
+
+            my @resolved_froms = ();
+            foreach my $from ( @froms ) {
+                if (substr($from, 0, 1) ~~ ["/", "\\"]) {
+                    say "error: use of absolute path in sync.from is not allowed\n";
+                    exit 1;
+                }
+                my $file = "$base/$from";
+                push (@resolved_froms, $file);
+                push (@watches, $file);
+            }
+            $sync_config{"from"} = [@resolved_froms];
+            push(@resolved_syncs, { %sync_config });
         }
-        $sync_config{"from"} = [@resolved_froms];
-        push(@resolved_syncs, { %sync_config });
-    }
 
         my $command =
 "fswatch " . join(" ", @watches) . " \\
@@ -150,44 +158,64 @@ switch($command) {
         # wait for connections
         print "listening to localhost on port $port...\n";
         while (1) {
-        my $new_socket = $socket->accept();
-        while(<$new_socket>)
-        {
-            my $file = $_;
-            my %sync = get_sync($file);
-            if (!%sync) {
-                say "warning: could not find sync for file $file\n";
-                next;
-            }
-
-            my @file_stat = stat($file);
-            if(@file_stat == 0) {
-                my $status = $file_digests{$file};
-                if ($status and $status eq "DELETED") {
-                    say "echo SKIP-DELETE:$file";
-                } else {
-                    say "echo DELETE:$file";
-                    delete_file($file, { %sync });
-                    $file_digests{$file} = "DELETED";
+            my $new_socket = $socket->accept();
+            while(<$new_socket>)
+            {
+                my $file = $_;
+                my %sync = get_sync($file);
+                if (!%sync) {
+                    say "warning: could not find sync for file $file\n";
+                    next;
                 }
-            } else {
-                # Only sync a file if either it's content hash or ctime has changed
-                # (note: ctime can actually change without contents/metadata really changing
-                # i.e. when a file is saved with the same contents, it's technically "modified" and "changed")
-                my $ctime = $file_stat[10];
-                my $data = read_file($file);
-                my $digest = md5($data . $ctime);
-                my $old_digest = $file_digests{$file};
-                if ($old_digest && $digest && $old_digest eq $digest) {
-                    say "echo SKIP-COPY:$file";
+
+                my $status = get_file_status($file);
+                if ($status eq 'UNCHANGED') {
+                    say "UNCHANGED:$file";
+                    next;
+                }
+
+                my $to = $sync{"to"};
+                if ($to) {
+                    if ($status eq 'DELETED') {
+                        say "SYNC-DELETE:$file";
+                        delete_file($file, { %sync });
+                        next;
+                    } else {
+                        say "SYNC-UPDATE:$file";
+                    }
                 } else {
-                    say "echo COPY:$file";
+                    say "CHANGED:$file";
                     copy_file($file, { %sync });
-                    $file_digests{$file} = $digest;
+                }
+
+                # After sync/change, run local and remote commands if defined
+                if ($status ne 'UNCHANGED') {
+                    my $post_sync_remote = $sync{"post-sync-remote"};
+                    my $post_sync_local = $sync{"post-sync-local"};
+
+                    if ($post_sync_remote) {
+                        say "POST-SYNC-REMOTE:$file";
+                        my $kubectl = get_kubectl_delete_command(%sync);
+                        my @pods = get_pods(%sync);
+                        foreach my $pod (@pods) {
+                            my $command = "$kubectl -it $pod -- $post_sync_remote";
+                            say "$command\n";
+                            system($command);
+                        }
+                    }
+
+                    if ($post_sync_local) {
+                        if ($post_sync_local eq "kubycat::exit") {
+                            say "exiting kubycat...";
+                            exit 0;
+                        }
+                        say "POST-SYNC-LOCAL:$file";
+                        say "$post_sync_local\n";
+                        system($post_sync_local);
+                    }
                 }
             }
         }
-    }
     }
     case "sync" {
         my $file = $ARGV[1];
@@ -214,14 +242,44 @@ sub help {
     say "usage: kubycat.pl watch|sync [options]";
 }
 
+sub get_file_status() {
+    my $file = shift;
+    my @file_stat = stat($file);
+    if(@file_stat == 0) {
+        my $status = $file_digests{$file};
+        if ($status and $status eq "DELETED") {
+            return 'UNCHANGED';
+        } else {
+            $file_digests{$file} = "DELETED";
+            return 'DELETED';
+        }
+    } else {
+        # Only sync a file if either it's content hash or ctime has changed
+        # (note: ctime can actually change without contents/metadata really changing
+        # i.e. when a file is saved with the same contents, it's technically "modified" and "changed")
+        my $ctime = $file_stat[10];
+        my $data = read_file($file);
+        my $digest = md5($data . $ctime);
+        my $old_digest = $file_digests{$file};
+        if ($old_digest && $digest && $old_digest eq $digest) {
+            return 'UNCHANGED';
+        } else {
+            $file_digests{$file} = $digest;
+            return 'CHANGED';
+        }
+    }
+}
+
 sub get_kubectl_delete_command {
     my %sync = @_;
     my $command = "kubectl exec ";
 
+    my $kube_context = $sync{"context"};
     if ($kube_context) {
         $command .= " --context $kube_context";
     }
 
+    my $kube_config = $sync{"config"};
     if ($kube_config) {
         $command .= " --kube-config $kube_config";
     }
@@ -312,7 +370,12 @@ sub copy_file {
     foreach my $pod (@pods) {
         my $command = "$kubectl $file $namespace/$pod:$remote_file";
         say "$command\n";
-        system($command);
+        my $result = system($command);
+        if ($result != 0) {
+            say "error: failed to copy file $file to $namespace/$pod:$remote_file";
+            say "restarting kubycat...";
+            exit 1;
+        }
     }
 }
 

@@ -14,6 +14,8 @@ kubycat:
     - name: test
       # The base directory to sync from
       base: /home/johndoe/test/
+      config: /home/johndoe/.kube/do-sfo3-k8s-johndoe
+      context: do-sfo3-k8s-johndoe
       # The Kubernetes namespace to use
       # leave blank to use the global namespace
       namespace: other
@@ -32,3 +34,14 @@ kubycat:
       pod-label: key=value
       # The shell command to run in the container for deleting files
       shell: /bin/sh
+    - name: composer
+      base: /home/johndoe/test/
+      namespace: other
+      from:
+        - composer.json
+        - composer.lock
+      to: /remote/server
+      pod-label: key=value
+      shell: /bin/sh
+      post-sync-local: composer update
+      post-sync-remote: /bin/sh -c "composer install"

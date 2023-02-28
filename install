@@ -34,7 +34,7 @@ echo "OK -- files copied."
 # copy the example config file to /etc/kubycat
 echo "Copying example config file to /etc/kubycat/config.yaml..."
 sudo mkdir -p /etc/kubycat
-sudo cp config.example.yaml /etc/kubycat/config.yaml
+sudo cp -n config.example.yaml /etc/kubycat/config.yaml
 echo "OK -- file copied."
 
 # update the kubycat.service file with the current user
