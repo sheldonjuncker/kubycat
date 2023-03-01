@@ -144,7 +144,7 @@ $ sudo systemctl status kubycat
 ## Configuration
 Kubycat is configured via a YAML file which by default is located at `/etc/kubycat/config.yaml` but may differ depending on your installation.
 
-The source code contains this sample configuration follow providing a brief overview of each available option.
+The source code contains this sample configuration providing a brief overview of each available option.
 ```yaml
 kubycat:
   config: /home/johndoe/.kube/config
