@@ -1,6 +1,6 @@
 [View Kubycat on GitHub](https://github.com/sheldonjuncker/kubycat)
 
-<img src="public/kubycat.jpg" alt="Kubycat" width="75" style="float: right" align="right" />
+<img src="https://kubycat.info/kubycat.jpg" alt="Kubycat" width="75" style="float: right" align="right" />
 
 
 # kubycat 
@@ -306,8 +306,10 @@ I wrote Kubycat because I couldn't get `ksync` to work on my machine and I wante
 
 The problem at hand didn't seem too difficult, so I decided to write my own solution. It's far from polished, but it works for me quite nicely, and maybe that means others will find it helpful as well.
 
+I'm currently using Kubycat for local development of [Dreamcloud](https://dreamcloud.app)--an online social network and dream journal to help people better understand their dreams and find likeminded individuals.
+
 ## Contributing
-This is the first version of Kubycat, so I'm aware that there are a lot of features that would be useful (file patterns, exclusions, etc.)
+This is only the second release of Kubycat, so I'm aware that there are a lot of features that would be useful (file patterns, exclusions, etc.)
 I'm also guessing that there will be a handful of bugs that I haven't found yet as my use cases are pretty limited. 
 I'd be more than happy to accept pull requests for any of these features or bug fixes.
 

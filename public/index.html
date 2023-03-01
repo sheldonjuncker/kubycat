@@ -5,12 +5,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kubycat -- README.md</title>
+    <meta name="description" content="A small library for the watching and automated syncing of files into a local or remote Kubernetes cluster.">
+    <meta name="keywords" content="kubycat, kubernetes, perl, file syncing, kubectl, fswatch, pod, cluster, remote, local">
     <link rel="stylesheet" href="https://stackedit.io/style.css" />
 </head>
 
 <body class="stackedit">
 <div class="stackedit__html"><p><a href="https://github.com/sheldonjuncker/kubycat">View Kubycat on GitHub</a></p>
-    <img src="/kubycat.jpg" alt="Kubycat" width="75" align="right" style="float: right">
+    <img src="https://kubycat.info/kubycat.jpg" alt="Kubycat" width="75" align="right">
     <h1 id="kubycat">kubycat</h1>
     <p>A small library for the watching and automated syncing of files into a local or remote Kubernetes cluster.</p>
     <pre class=" language-perl"><code class="prism  language-perl"><span class="token keyword">my</span> <span class="token variable">$name</span> <span class="token operator">=</span> kubycat
@@ -240,8 +242,9 @@ cpan -i Switch
     <h2 id="about">About</h2>
     <p>I wrote Kubycat because I couldn’t get <code>ksync</code> to work on my machine and I wanted a simple way to sync files into my minikube Kubernetes cluster for local development. I played around with other approaches such as <code>Skaffold</code>, but I found that they were too complex for my needs.</p>
     <p>The problem at hand didn’t seem too difficult, so I decided to write my own solution. It’s far from polished, but it works for me quite nicely, and maybe that means others will find it helpful as well.</p>
+    <p>I’m currently using Kubycat for local development of <a href="https://dreamcloud.app">Dreamcloud</a>–an online social network and dream journal to help people better understand their dreams and find likeminded individuals.</p>
     <h2 id="contributing">Contributing</h2>
-    <p>This is the first version of Kubycat, so I’m aware that there are a lot of features that would be useful (file patterns, exclusions, etc.)<br>
+    <p>This is only the second release of Kubycat, so I’m aware that there are a lot of features that would be useful (file patterns, exclusions, etc.)<br>
         I’m also guessing that there will be a handful of bugs that I haven’t found yet as my use cases are pretty limited.<br>
         I’d be more than happy to accept pull requests for any of these features or bug fixes.</p>
     <h2 id="license">License</h2>
