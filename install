@@ -38,8 +38,9 @@ if [ "$install_modules" = "y" ]; then
     cpan -i Switch
 
     if [ "$module_path" != "" ]; then
-        echo "For non-service use, you may need to add the following to your .bashrc file:"
+        echo "For non-service use, you may need to add the following to your .bashrc file (or equivalent for Mac):"
         echo "export PERL5LIB=$module_path/lib/perl5"
+        echo "alternatively, you can manually add the PERL5LIB=$module_path/lib/perl5 as a prefix to the kubycat command."
     fi
 
     echo "OK -- Perl modules installed."
