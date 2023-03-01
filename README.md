@@ -1,6 +1,6 @@
 [View Kubycat on GitHub](https://github.com/sheldonjuncker/kubycat)
 
-<img src="https://kubycat.info/kubycat.jpg" alt="Kubycat" width="75" style="float: right" align="right" />
+<img src="https://kubycat.info/kubycat.svg" alt="Kubycat" width="75" style="float: right" align="right" />
 
 
 # kubycat 
