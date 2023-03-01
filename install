@@ -56,7 +56,12 @@ if [ "$config_path" = "" ]; then
 fi
 echo "Copying example config file to $config_path/config.yaml..."
 sudo mkdir -p $config_path
-sudo cp -n config.example.yaml $config_path/config.yaml
+# check if the config yaml file exists
+if [ -f "$config_path/config.yaml" ]; then
+    echo "INFO -- $config_path/config.yaml already exists, not overwriting"
+else
+    sudo cp config.example.yaml $config_path/config.yaml
+fi
 echo "OK -- file copied."
 echo ""
 
@@ -69,7 +74,7 @@ fi
 echo "Copying kubycat and kubycat.pl to $install_path..."
 sudo cp kubycat.pl $install_path/kubycat.pl
 sudo cp kubycat $install_path/kubycat
-sudo sed -i "s|kubycat.pl|$install_path/kubycat.pl|" $install_path/kubycat
+sudo sed -i"" "s|kubycat.pl|$install_path/kubycat.pl|" $install_path/kubycat
 if [ "$module_path" != "" ]; then
     # add the PERLLIB5 environment variable to the beginning of the kubycat file
     KUBYCAT_TMP=`echo -n "PERL5LIB=$PERL5LIB "; cat $install_path/kubycat`
@@ -95,16 +100,16 @@ echo "Installing the kubycat service via systemd..."
 cp kubycat.service kubycat.service.tmp
 
 # replace the version
-sed -i "s/\$VERSION/$VERSION/" kubycat.service.tmp
+sed -i"" "s/\$VERSION/$VERSION/" kubycat.service.tmp
 
 # replace the install path
-sed -i "s|\$INSTALL_PATH|$install_path|" kubycat.service.tmp
+sed -i"" "s|\$INSTALL_PATH|$install_path|" kubycat.service.tmp
 
 # replace the user with the current user
-sed -i "s/\$USER/$USER/" kubycat.service.tmp
+sed -i"" "s/\$USER/$USER/" kubycat.service.tmp
 
 # replace the config file
-sed -i "s|\$CONFIG_FILE|$config_path/config.yaml|" kubycat.service.tmp
+sed -i"" "s|\$CONFIG_FILE|$config_path/config.yaml|" kubycat.service.tmp
 
 # copy the kubycat.service file to the systemd directory
 sudo cp kubycat.service.tmp /etc/systemd/system/kubycat.service
