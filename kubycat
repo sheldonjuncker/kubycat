@@ -1,1 +1,1 @@
-perl /usr/local/bin/kubycat.pl "$@"
+perl kubycat.pl "$@"

@@ -159,6 +159,11 @@ switch($command) {
                 exit 1;
             }
 
+            if ($pod && $pod_label) {
+                say "error: use of both pod and pod-label is not allowed\n";
+                exit 1;
+            }
+
             if ($to && !$shell) {
                 say "error: use of sync.to without shell set\n";
                 exit 1;
@@ -215,45 +220,43 @@ switch($command) {
                 say "CHANGED:$file";
 
                 my $to = $sync{"to"};
+                my $remote_file;
                 if ($to) {
                     if ($status eq 'DELETED') {
                         say "SYNC-DELETE:$file";
-                        delete_file($file, { %sync });
-                        next;
+                        $remote_file =delete_file($file, { %sync });
                     } else {
                         say "SYNC-UPDATE:$file";
-                        copy_file($file, { %sync });
+                        $remote_file = copy_file($file, { %sync });
                     }
                 }
 
                 # After sync/change, run local and remote commands if defined
-                if ($status ne 'UNCHANGED') {
-                    my $post_sync_remote = $sync{"post-sync-remote"};
-                    my $post_sync_local = $sync{"post-sync-local"};
+                my $post_sync_remote = $sync{"post-sync-remote"};
+                my $post_sync_local = $sync{"post-sync-local"};
 
-                    if ($post_sync_remote) {
-                        say "POST-SYNC-REMOTE:$file";
-                        my $kubectl = get_kubectl_delete_command(%sync);
-                        my @pods = get_pods(%sync);
-                        foreach my $pod (@pods) {
-                            my $command = "$kubectl $pod -- $post_sync_remote";
-                            $command =~ s|\$SYNCED_FILE|$file|g;
-                            say "$command\n";
-                            system($command);
-                        }
-                    }
-
-                    if ($post_sync_local) {
-                        if ($post_sync_local eq "kubycat::exit") {
-                            say "exiting kubycat...";
-                            exit 0;
-                        }
-                        say "POST-SYNC-LOCAL:$file";
-                        my $command = $post_sync_local;
-                        $command =~ s|\$SYNCED_FILE|$file|g;
+                if ($post_sync_remote && $to && $remote_file) {
+                    say "POST-SYNC-REMOTE:$file";
+                    my $kubectl = get_kubectl_delete_command(%sync);
+                    my @pods = get_pods(%sync);
+                    foreach my $pod (@pods) {
+                        my $command = "$kubectl $pod -- $post_sync_remote";
+                        $command =~ s|{synced_file}|$remote_file|g;
                         say "$command\n";
-                        system($post_sync_local);
+                        system($command);
                     }
+                }
+
+                if ($post_sync_local) {
+                    if ($post_sync_local eq "kubycat::exit") {
+                        say "exiting kubycat...";
+                        exit 0;
+                    }
+                    say "POST-SYNC-LOCAL:$file";
+                    my $command = $post_sync_local;
+                    $command =~ s|{synced_file}|$file|g;
+                    say "$command\n";
+                    system($post_sync_local);
                 }
             }
         }
@@ -390,6 +393,7 @@ sub copy_file {
         say "$command\n";
         system($command);
     }
+    return $remote_file;
 }
 
 sub get_sync {

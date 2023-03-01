@@ -4,108 +4,268 @@
 
 
 # kubycat 
-A small perl script for syncing files into a Kubernetes cluster.
+A small library for the watching and automated syncing of files into a local or remote Kubernetes cluster.
 
 ```perl
 my $name = kubycat
-my $version = 0.0.1
+my $version = 0.1.0
 my $author = Sheldon Juncker <sheldon@dreamcloud.app>
 my $github = https://github.com/sheldonjuncker/kubycat
 my $license = MIT
 ```
 
+## Table of Contents
+- [Overview](#overview)
+- [Installation](#installation)
+  - [Install kubectl](#install-kubectl)
+  - [Install fswatch](#install-fswatch)
+  - [Acquire the Kubycat source code](#acquire-the-kubycat-source-code)
+  - [Install Kubycat](#install-kubycat)
+- [Configuration](#configuration)
+- [Usage](#usage)
+  - [Syncing](#syncing)
+  - [Manual Syncing](#manual-syncing)
+  - [Version](#version)
+  - [Help](#help)
+- [About](#about)
+- [License](#license)
+
+## Overview
+Kubycat is a small library for the watching and automated syncing of files into a local or remote Kubernetes cluster.
+
+Kubycat is best suited for local development where it can be used as a simpler alternative to `ksync` or `Skaffold` where you either don't want to install components into your cluster or you don't want to use a complex project setup with a lot of configuration.
+
+Kubycat relies on `fswatch` to watch for file changes and then uses `kubectl cp` and `kubectl exec` to copy or delete the changed files into the specified Kubernetes pod(s).
+
+Kubycat can run as a Linux service to further automate the process.
+
+**Example:**
+```yaml
+kubycat:
+  config: /home/johndoe/.kube/config
+  context: do-sfo1-k8s-cluster
+  namespace: default
+  port: 1273
+  sync:
+    - name: web-app
+      base: /home/johndoe/web-app
+      from:
+        - src
+        - config
+        - index.php
+        - .env
+        - .htaccess
+      to: /remote/www
+      pod: php-123
+      shell: /bin/sh
+```
+
 ## Installation
-Kubycat requires fswatch and Perl 5.10 or higher to be installed on the system.
+Kubycat requires kubectl, fswatch, and Perl 5.10 or higher to be installed on the system.
 Most Linux distributions come with Perl pre-installed, but if you are on Windows you will need to install it.
 You can view instructions for doing so here: https://learn.perl.org/installing/windows.html
 
-### Step 0
-_Install fswatch._
-```bash
-# Mac/Linux
-$ brew install fswatch 
+### Install kubectl
+Kubycat uses kubectl to connect to the Kubernetes cluster.
 
- # Linux
+You can install kubectl in any OS by following the instructions here: https://kubernetes.io/docs/tasks/tools/install-kubectl/
+
+
+### Install fswatch
+Kubycat uses fswatch to watch for file changes. This is a standard tool and can be installed in any operating system.
+```bash
+# Linux
 $ apt-get install fswatch
 
+# Mac
+$ brew install fswatch 
+
 # Windows
+$ not supported (it might still work, but it's not tested)
 $ explorer "https://github.com/emcrisostomo/fswatch/blob/master/README.windows"
 ```
 
-### Step 1
-_Clone the repository._
+### Acquire the Kubycat source code
+You can either clone the repository and use the tagged source code directly or you can download the [latest release](https://github.com/sheldonjuncker/kubycat/releases/latest).
 ```bash
 $ git clone https://github.com/sheldonjuncker/kubycat.git
 ```
 
-### Step 2
-_Install the CPAN modules._
+### Install Kubycat
+Kubycat comes with an install script for Linux/Mac that can do the following:
+- Install required Perl modules
+- Copy the kubycat scripts to a global location
+- Copy the kubycat config file to a global location
+- Install kubycat as a systemd service (Linux only)
 
-Kubycat requires the following Perl modules:
-- YAML::XS
-- IO::Socket
-- Digest::MD5
-- File::Slurp
-- Switch
-
-You can automatically install these modules by running the install script:
+You can run the installation script as follows:
 ```bash
 $ cd kubycat
 $ ./install
 ```
 
+_Note that the install script requires sudo access to copy the scripts and config file to a global location._
+
+You can alternatively install Kubycat manually by:
+1. Installing the Perl modules: `YAML::XS`, `IO::Socket`, `Digest::MD5`, `File::Slurp`, `Switch`, and `Data::Dumper`
+
+Example:
+```bash
+cpan -i YAML::XS
+cpan -i IO::Socket
+cpan -i Digest::MD5
+cpan -i File::Slurp
+cpan -i Data::Dump
+cpan -i Switch
+```
+
+2. (optional) Adding the kubycat scripts to your path.
+Example:
+```bash
+echo 'export PATH="$PATH:/path/to/kubycat"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+You can test the installation by running:
+```bash
+$ kubycat version
+```
+if installed globally or:
+```bash
+$ ./kubycat version
+```
+if otherwise.
+
+If you installed kubycat as a service you might also want to test that it is running:
+```bash
+$ sudo systemctl status kubycat
+```
+
 ## Configuration
-Kubycat is configured via a `config.yaml` file in the root directory of the project. An example file is provided in `config.example.yaml`.
+Kubycat is configured via a YAML file which by default is located at `/etc/kubycat/config.yaml` but may differ depending on your installation.
+
+The source code contains this sample configuration follow providing a brief overview of each available option.
 ```yaml
 kubycat:
-  # The Kubernetes config file to use
   config: /home/johndoe/.kube/config
-  # The Kubernetes context to use
   context: minikube
-  # The Kubernetes namespace to use
-  # This can be specified or overridden for each individual sync
   namespace: default
-  # The port to use for the kubycat file syncing server
   port: 1273
-  # Individual sync configs
   sync:
-      # The name of the sync
     - name: test
-      # The base directory to sync from  
       base: /home/johndoe/test/
-      # The Kubernetes namespace to use
-      # leave blank to use the global namespace
       namespace: other
-      # The file paths to sync
-      # Note that all syncing is done recursively
+      config: /home/johndoe/.kube/config
+      context: do-sfo1-k8s-cluster
       from:
         - src
         - config
         - index.php
-      # The remote directory to sync into 
       to: /remote/server
-      # The Kubernetes pod to sync into
       pod: pod-name
-      # The Kubernetes pod label to use for finding the pod(s) to sync into
-      # This can be used instead of specifying a single pod
       pod-label: key=value
-      # The shell command to run in the container for deleting files
       shell: /bin/sh
+      post-sync-remote: /bin/sh -c "composer  update --working-dir=/remote/server"
+      post-sync-local: echo "Synced {synced_file}!" >> /home/johndoe/test/sync.log
 ```
 
-You can copy this file to `config.yaml` and edit to suit your needs.
-```bash
-$ mv config.example.yaml config.yaml
+### kubycat
+The `kubycat` section contains all options to configure Kubycat.
+
+### kubycat.config
+The `kubycat.config` option specifies the Kubernetes config file to use. This should be an absolute path to the config file, but can be left blank in which case the default config file will be used by kubectl.
+
+You can also override this for any individual sync specification. 
+
+### kubycat.context
+The `kubycat.context` option specifies the Kubernetes context to use. This allows you to specify which Kubernetes cluster to connect to while using the same config file.
+
+Like the `kubycat.config` option, this can be left blank or overridden for any individual sync specification.
+
+### kubycat.namespace
+The `kubycat.namespace` option specifies the default Kubernetes namespace to sync files into. This can also be left blank to use the default namespace or overridden.
+
+### kubycat.port
+The `kubycat.port` option specifies the port to use for the kubycat file syncing server.
+
+### kubycat.sync
+The `kubycat.sync` option is a list of sync specifications. Each sync specification contains the following options:
+
+### kubycat.sync.name
+The `kubycat.sync.name` option specifies the name of the sync. This is currently not used except to make the YAML look prettier and can be anything.
+
+### kubycat.sync.base
+The `kubycat.sync.base` option specifies the base directory to sync from. This must be an absolute path, from which the individual `from` paths will be resolved.
+
+### kubycat.sync.namespace
+The `kubycat.sync.namespace` option specifies the Kubernetes namespace to sync files into. This can be left blank to use the global or default namespace.
+
+### kubycat.sync.config
+The `kubycat.sync.config` option specifies the Kubernetes config file to use for this sync. This should be an absolute path to the config file, but can be left blank in which case the global or default config will be used.
+
+### kubycat.sync.context
+The `kubycat.sync.context` option specifies the Kubernetes context to use for this sync. This can be left blank to use the global or default context.
+
+### kubycat.sync.from
+The `kubycat.sync.from` option is a list of files and/or folders to sync from the `base` directory. This can be a single file or folder or a list of files and folders. Each path must be a relative path from the `base` directory and if a folder will be synced recursively.
+
+### kubycat.sync.to
+The `kubycat.sync.to` option specifies the remote path to sync files to. This must be an absolute path.
+
+The to path is assumed to be logically equivalent to the `base` directory. For example, if the `base` directory is `/home/johndoe/test/` and the `to` path is `/remote/server` then the file `/home/johndoe/test/src/index.php` will be synced to `/remote/server/src/index.php`.
+
+This field is optional in which case only the local command will be executed upon file change and no syncing will take place.
+
+This is a convenient way to run a custom file watcher without needing to sync files, and for reloading configs.
+
+### kubycat.sync.pod
+The `kubycat.sync.pod` option specifies the name of the pod to sync files into. This is useful for simple deployments where you know the name of the single pod where you want to sync files.
+
+### kubycat.sync.pod-label
+Alternatively, the `kubycat.sync.pod-label` option can be used to specify a label to use to find the pod to sync files into. This is useful for deployments where you have multiple pods whose names you don't know but you can identify them by a label.
+
+`pod` and `pod-label` are mutually exclusive and only one can be specified.
+
+One of the two options must be specified if the `to` option is set.
+
+### kubycat.sync.shell
+The `kubycat.sync.shell` option specifies the shell to use when executing commands in the pod. This is required for deleting files and folders within the Kubernetes pods because `kubectl` provides no `rm` equivalent to `cp`.
+
+This option is required if the `to` option is set.
+
+### kubycat.sync.post-sync-local
+The `kubycat.sync.post-sync-local` option specifies a local command to run after syncing files to the Kubernetes pod. This is useful for running commands like `composer install` or `npm install` to install dependencies.
+
+You can also specify the special `kubycat::exit` command to exit Kubycat after a sync is performed.
+
+This might be useful if you only want to sync a one-off change to a pod and then exit. 
+
+**_Easter egg_**
+
+Because Kubycat can perform commands on file syncing and file syncing is performed on file changes, you can write a sync config that will cause Kubycat to exit if it sees that it's own configuration YAML file has changed. If you are also running Kubycat as a service, this will cause Kubycat to restart itself and pick up any changes to the configuration file.
+
+```yaml
+- name: kubycat-config
+  base: /etc/kubycat
+  from:
+    - config.yaml
+  post-sync-local: kubycat::exit
 ```
+
+### kubycat.sync.post-sync-remote
+The `kubycat.sync.post-sync-remote` option specifies a remote command to run in each pod after files have been synced. This is useful for running commands like `composer install` or `npm install` to install dependencies.
+
+
+With both `post-sync-local` and `post-sync-remote` you can use the `{synced_file}`placeholder to specify the path to the local or remote file that was synced. This is useful if you want to run a command on a specific file that was synced.
 
 ## Usage
-Kubycat is a simple command-line Perl script which can be invoked via the `./kubycat` command which conveniently works in either Linux or Windows because Linux is smart and uses the `kubycat` file and Windows is silly and uses the `kubycat.bat` file.
+While Kubycat can be run as a service, you can also run it manually via the command line via `kubycat [subcommand] [options]`.
 
-Note: I actually have no idea if this works on Windows, but it should.
+The only option at this time is the `--config` option which allows you to specify the location of the YAML configuration file, which defaults to `/etc/kubycat/config.yaml`.
 
 ### Syncing
 
-Kubycat syncing is invoked via the `kubycat watch` command.
+Kubycat syncing is invoked via the `kubycat watch` subcommand.
 ```bash
 $ ./kubycat watch
 ```
@@ -114,11 +274,20 @@ While running, Kubycat will watch the configured files for changes and sync them
 
 Kubycat will display a list of commands that it is running as the files are synced.
 
+In service mode, you can get the tail of the log file by running:
+```bash
+$ sudo systemctl status kubycat
+```
+
 ### Manual Syncing
 You can manually sync a file/folder by running:
 ```bash
 $ ./kubycat sync <absolute_path>
 ```
+
+This will find the sync configuration for the specified file/folder and sync it into the Kubernetes cluster.
+
+This only works while the `kubycat watch` command is running.
 
 ### Version
 You can view the current Kubycat version by running:

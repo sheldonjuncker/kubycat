@@ -69,6 +69,7 @@ fi
 echo "Copying kubycat and kubycat.pl to $install_path..."
 sudo cp kubycat.pl $install_path/kubycat.pl
 sudo cp kubycat $install_path/kubycat
+sudo sed -i "s|kubycat.pl|$install_path/kubycat.pl|" $install_path/kubycat
 if [ "$module_path" != "" ]; then
     # add the PERLLIB5 environment variable to the beginning of the kubycat file
     KUBYCAT_TMP=`echo -n "PERL5LIB=$PERL5LIB "; cat $install_path/kubycat`
