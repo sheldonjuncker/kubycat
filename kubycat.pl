@@ -9,7 +9,7 @@ use Digest::MD5 qw(md5);
 use File::Slurp;
 use Data::Dump qw(dump);
 
-my $version = "0.0.1";
+my $version = "0.1.3";
 
 # read the --config argument
 my $config_file = "/etc/kubycat/config.yaml";

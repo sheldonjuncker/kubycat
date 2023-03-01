@@ -8,7 +8,7 @@ A small library for the watching and automated syncing of files into a local or 
 
 ```perl
 my $name = kubycat
-my $version = 0.1.0
+my $version = 0.1.3
 my $author = Sheldon Juncker <sheldon@dreamcloud.app>
 my $github = https://github.com/sheldonjuncker/kubycat
 my $license = MIT
