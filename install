@@ -110,7 +110,7 @@ sed -i.bak "s/\$VERSION/$VERSION/" kubycat.service.tmp
 sed -i.bak "s|\$INSTALL_PATH|$install_path|" kubycat.service.tmp
 
 # replace the user with the current user
-sed -i.bak "s/\$USER/$USER/" kubycat.service.tmp
+sed -i.bak "s/\$USER/$USER/g" kubycat.service.tmp
 
 # replace the config file
 sed -i.bak "s|\$CONFIG_FILE|$config_path/config.yaml|" kubycat.service.tmp
@@ -118,20 +118,20 @@ sed -i.bak "s|\$CONFIG_FILE|$config_path/config.yaml|" kubycat.service.tmp
 rm kubycat.service.tmp.bak
 
 # copy the kubycat.service file to the systemd directory
-sudo cp kubycat.service.tmp /etc/systemd/system/kubycat.service
+sudo cp kubycat.service.tmp /etc/systemd/user/kubycat.service
 rm kubycat.service.tmp
 
 # enable the service
-sudo systemctl enable kubycat
+systemctl --user enable kubycat
 
 # reload the systemd daemon
-sudo systemctl daemon-reload
+systemctl --user daemon-reload
 
 # start the service
-sudo systemctl start kubycat
+systemctl --user start kubycat
 echo "OK -- service installed."
 
 # done
 echo "Getting kubycat status..."
-sudo systemctl status kubycat
+systemctl --user status kubycat
 echo "OK -- installation complete."

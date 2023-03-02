@@ -1,14 +1,15 @@
- [Unit]
+[Unit]
 Description=The Kubycat Service ($VERSION)
-After=network.target
+#After=network.target
 StartLimitIntervalSec=3
 
 [Service]
 Type=simple
 Restart=always
 RestartSec=1
-User=$USER
+#User=$USER
 ExecStart=/bin/bash $INSTALL_PATH/kubycat watch --config $CONFIG_FILE
+#Environment="DISPLAY=:0" "XAUTHORITY=/home/$USER/.Xauthority"
 
 [Install]
-WantedBy=multi-user.target
+RequiredBy=default.target

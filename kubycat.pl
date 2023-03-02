@@ -446,6 +446,9 @@ sub get_pods {
             my $error = pop @pods;
             say "| error: failed to get pods from kubectl";
             say "|   msg: $error";
+            $error = $error =~ s/"/\\"/gr;
+            system("notify-send -u critical -a Kubycat -c error 'Kubycat Error' 'Failed to get pods from kubectl'");
+            sleep 3;
             kubycat_exit(1);
         }
         return @pods;
