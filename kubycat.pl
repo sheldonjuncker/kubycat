@@ -26,10 +26,10 @@ sub kubycat_exit {
     say_status("KUBYCAT", "EXIT","Received SIGTERM and stopping services...", "EXITING");
     # get the PID based on the KUBYCAT_PID flag
     say_status("FSWATCH", "EXIT", "Shutting down fswatch daemon...", "EXITING");
-    my $find_fswatch = "pgrep -a fswatch | grep -oP \"\\K([0-9]+)(?=.+" . quotemeta($fswatch_command) . ")\"";
+    my $find_fswatch = "ps ax | grep -oP \"\\s*\\K([0-9]+)(?=.+" . quotemeta($fswatch_command) . ")\"";
     say "| $find_fswatch";
-    my $fswatch_pid = `$find_fswatch`;
-    chomp($fswatch_pid);
+    my @fswatch_matches = `$find_fswatch`;
+    my $fswatch_pid = shift @fswatch_matches;
     if ($fswatch_pid) {
         say "| kill $fswatch_pid";
         system("kill $fswatch_pid");
@@ -363,6 +363,19 @@ sub pad_string {
     return (' ' x ($padding / 2)) . $string . (' ' x ($padding / 2) . (' ' x ($padding % 2)));
 }
 
+sub notify_desktop {
+    my ($description, $error, $level, $notify_type) = @_;
+    my $command;
+    if ($notify_type eq "notify-send") {
+        $command = "notify-send -u $level -a Kubycat -c error 'Kubycat Error' '$description\n <p><i>$error</i></p>'";
+    } elsif ($notify_type eq "display notification") {
+        $command = "osascript -e 'display notification \"$description:\n$error\" with title \"Kubycat\" subtitle \"Kubycat Error\"'";
+    } else {
+        return;
+    }
+    system($command);
+}
+
 sub get_kubectl_delete_command {
     my %sync = @_;
     my $command = "kubectl exec ";
@@ -446,9 +459,10 @@ sub get_pods {
             my $error = pop @pods;
             say "| error: failed to get pods from kubectl";
             say "|   msg: $error";
-            $error = $error =~ s/"/\\"/gr;
-            system("notify-send -u critical -a Kubycat -c error 'Kubycat Error' 'Failed to get pods from kubectl'");
-            sleep 3;
+            $error = $error =~ s/'/\\'/gr;
+            if ($sync{"notify"}) {
+                notify_desktop("Failed to get pods from kubectl", $error, "critical", $sync{"notify"});
+            }
             kubycat_exit(1);
         }
         return @pods;
