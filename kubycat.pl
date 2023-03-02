@@ -262,21 +262,27 @@ switch($command) {
                 my $command_name = pad_string("SYNC", 9);
                 my $command_action;
                 my $command_status;
-
-
-                if (length($file) > 52) {
-                    $file = "..." . substr($file, -49);
-                }
-                my $command_file = pad_string($file, 52);
-
+                my $command_file = $file;
 
                 my %sync = get_sync($file);
                 if (!%sync) {
                     $command_action = pad_string("NONE", 8);
                     $command_status = pad_string("NO_SYNC", 12);
+                    if (length($command_file) > 52) {
+                        $command_file = "..." . substr($command_file, -49);
+                    }
+                    my $command_file = pad_string($command_file, 52);
                     say_status($command_name, $command_action, $command_file, $command_status);
                     next;
                 }
+
+                my $base = $sync{"base"};
+                $command_file = substr($command_file, length($base) + 1);
+                $command_file = $sync{"name"} . ":$command_file";
+                if (length($command_file) > 52) {
+                    $command_file = "..." . substr($command_file, -49);
+                }
+                my $command_file = pad_string($command_file, 52);
 
                 my $status = get_file_status($file);
                 if ($status eq 'UNCHANGED') {
