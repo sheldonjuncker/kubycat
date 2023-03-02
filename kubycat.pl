@@ -9,6 +9,27 @@ use Digest::MD5 qw(md5);
 use File::Slurp;
 use Data::Dump qw(dump);
 
+my $pid;
+
+$SIG{TERM} = sub { kubycat_exit(0); };
+
+sub kubycat_exit {
+    my $status = shift;
+    # Kill all child processes and wait for them to exit
+    say "kubycat: received SIGTERM, exiting...";
+    say "kubycat: ending fswatch daemon...";
+    # get the PID based on the KUBYCAT_PID flag
+    my $xargs_pid = `pgrep -a xargs | grep -oP "\\K([0-9]+)(?=.+KUBYCAT_PID=$$)"`;
+    chomp($xargs_pid);
+    if ($xargs_pid) {
+        say "kubycat: ending fswatch daemon with PID $xargs_pid...";
+        system("kill $xargs_pid");
+    } else {
+        say "kubycat: no fswatch daemon found";
+    }
+    exit $status;
+};
+
 my $version = "0.1.3";
 
 # read the --config argument
@@ -96,16 +117,6 @@ switch($command) {
         say "written by Sheldon Juncker <sheldon\@dreamcloud.app>";
     }
     case "watch" {
-        # Start the Server
-        my $socket = new IO::Socket::INET (
-            LocalHost => 'localhost',
-            LocalPort => $port,
-            Proto => 'tcp',
-            Listen => 1,
-            Reuse => 1,
-        );
-        die "error: failed to start server on port $port" unless $socket;
-
         # Start Watching
         my @watches = ();
         foreach ( @syncs ) {
@@ -183,8 +194,9 @@ switch($command) {
             push(@resolved_syncs, { %sync_config });
         }
 
-        my $command =
-"fswatch " . join(" ", @watches) . " \\
+        # The child process will watch for file changes
+        say "Watching files...";
+        my $command = "fswatch " . join(" ", @watches) . " \\
     -r \\
     --event Created \\
     --event Updated \\
@@ -194,9 +206,20 @@ switch($command) {
     --event MovedTo \\
     --event OwnerModified \\
     --event AttributeModified \\
-| xargs -I {} kubycat sync {} &";
+| xargs -I {} kubycat sync {} --KUBYCAT_PID=$$ &";
         say $command;
         system($command);
+
+
+        # The parent process will start a server to listen for sync requests
+        my $socket = new IO::Socket::INET (
+            LocalHost => 'localhost',
+            LocalPort => $port,
+            Proto => 'tcp',
+            Listen => 1,
+            Reuse => 1,
+        );
+        die "error: failed to start server on port $port" unless $socket;
 
         # wait for connections
         print "listening to localhost on port $port...\n";
@@ -250,7 +273,7 @@ switch($command) {
                 if ($post_sync_local) {
                     if ($post_sync_local eq "kubycat::exit") {
                         say "exiting kubycat...";
-                        exit 0;
+                        kubycat_exit(0);
                     }
                     say "POST-SYNC-LOCAL:$file";
                     my $command = $post_sync_local;
@@ -268,6 +291,7 @@ switch($command) {
             PeerAddr => 'localhost',
             PeerPort => $port,
             Proto => 'tcp',
+            Timeout => 3,
         );
         die "error: failed to connect to server on port $port" unless $socket;
         print $socket $file;
