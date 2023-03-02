@@ -393,7 +393,7 @@ sub get_kubectl_delete_command {
 
     my $kube_config = $sync{"config"};
     if ($kube_config) {
-        $command .= " --kube-config $kube_config";
+        $command .= " --kubeconfig $kube_config";
     }
 
     my $namespace = $sync{"namespace"};
@@ -413,7 +413,7 @@ sub get_kubectl_copy_command {
 
     my $kube_config = $sync{"config"};
     if ($kube_config) {
-        $command .= " --kube-config $kube_config";
+        $command .= " --kubeconfig $kube_config";
     }
 
     return $command;
@@ -431,7 +431,7 @@ sub get_kubectl_pods_command {
 
     my $kube_config = $sync{"config"};
     if ($kube_config) {
-        $command .= " --kube-config $kube_config";
+        $command .= " --kubeconfig $kube_config";
     }
 
     $command .= " --namespace " . $sync{"namespace"};
