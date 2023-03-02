@@ -9,28 +9,59 @@ use Digest::MD5 qw(md5);
 use File::Slurp;
 use Data::Dump qw(dump);
 
-my $pid;
+my $header = "+---------+--------+----------------------------------------------------+------------+";
+
+my $fswatch_command;
+
 
 $SIG{TERM} = sub { kubycat_exit(0); };
 
 sub kubycat_exit {
     my $status = shift;
     # Kill all child processes and wait for them to exit
-    say "kubycat: received SIGTERM, exiting...";
-    say "kubycat: ending fswatch daemon...";
+    say_status(
+        pad_string("KUBYCAT", 9),
+        pad_string("EXIT", 8),
+        pad_string("Received SIGTERM and stopping services...", 52),
+        pad_string("EXITING", 12)
+    );
     # get the PID based on the KUBYCAT_PID flag
-    my $xargs_pid = `pgrep -a xargs | grep -oP "\\K([0-9]+)(?=.+KUBYCAT_PID=$$)"`;
-    chomp($xargs_pid);
-    if ($xargs_pid) {
-        say "kubycat: ending fswatch daemon with PID $xargs_pid...";
-        system("kill $xargs_pid");
+    say_status(
+        pad_string("FSWATCH", 9),
+        pad_string("EXIT", 8),
+        pad_string("Shutting down fswatch daemon...", 52),
+        pad_string("EXITING", 12)
+    );
+    my $find_fswatch = "pgrep -a fswatch | grep -oP \"\\K([0-9]+)(?=.+" . quotemeta($fswatch_command) . ")\"";
+    my $fswatch_pid = `$find_fswatch`;
+    chomp($fswatch_pid);
+    if ($fswatch_pid) {
+        system("kill $fswatch_pid");
+        say_status(
+            pad_string("FSWATCH", 9),
+            pad_string("EXIT", 8),
+            pad_string("Shutting down fswatch daemon...", 52),
+            pad_string("SUCCESS", 12)
+        );
     } else {
-        say "kubycat: no fswatch daemon found";
+        say_status(
+            pad_string("FSWATCH", 9),
+            pad_string("EXIT", 8),
+            pad_string("Shutting down fswatch daemon...", 52),
+            pad_string("NO_DAEMON", 12)
+        );
     }
+    say_status(
+        pad_string("KUBYCAT", 9),
+        pad_string("EXIT", 8),
+        pad_string("Received SIGTERM and stopping services...", 52),
+        pad_string("SUCCESS", 12)
+    );
+    say $header;
     exit $status;
 };
 
-my $version = "0.1.3";
+my $version = "0.1.6";
 
 # read the --config argument
 my $config_file = "/etc/kubycat/config.yaml";
@@ -44,20 +75,20 @@ for (my $i = 0; $i < @ARGV; $i++) {
 
 my $config = LoadFile($config_file);
 if (!$config) {
-    say "error: unable to find config.yaml\n";
+    say "error: unable to find config.yaml";
     exit 1;
 }
 
 $config = $config->{"kubycat"};
 if (!$config) {
-    say "error: no configuration found in config.yaml\n";
+    say "error: no configuration found in config.yaml";
     exit 1;
 }
 
 # Server port number
 my $port = $config->{"port"};
 if (!$port) {
-    say "error: kubycat.port not set in config.yaml\n";
+    say "error: kubycat.port not set in config.yaml";
     exit 1;
 }
 
@@ -74,7 +105,7 @@ my $kube_global_namespace = $config->{"namespace"};
 my @syncs = @{$config->{"sync"}};
 
 if (@syncs == 0) {
-    say "warning: no syncs defined in kubycat.sync\n";
+    say "warning: no syncs defined in kubycat.sync";
     exit 0;
 }
 
@@ -117,6 +148,8 @@ switch($command) {
         say "written by Sheldon Juncker <sheldon\@dreamcloud.app>";
     }
     case "watch" {
+        say "starting kubycat version $version...\n";
+
         # Start Watching
         my @watches = ();
         foreach ( @syncs ) {
@@ -136,7 +169,7 @@ switch($command) {
                 $namespace = $kube_global_namespace;
             }
             if (!$namespace) {
-                say "error: either a global namespace or sync namespace must be set\n";
+                say "error: either a global namespace or sync namespace must be set";
                 exit 1;
             }
             $sync_config{"namespace"} = $namespace;
@@ -152,38 +185,38 @@ switch($command) {
             $sync_config{"context"} = $kube_context;
 
             if (!$base) {
-                say "error: use of sync without base path set\n";
+                say "error: use of sync without base path set";
                 exit 1;
             }
             if (!(substr($base, 0, 1) ~~ ["/", "\\"])) {
-                say "error: use of relative path within base is not allowed\n";
+                say "error: use of relative path within base is not allowed";
                 exit;
             }
 
             if ($to && !(substr($to, 0, 1) ~~ ["/", "\\"])) {
-                say "error: use of relative path within to is not allowed\n";
+                say "error: use of relative path within to is not allowed";
                 exit;
             }
 
             if (!$pod && !$pod_label && $to) {
-                say "error: use of sync.to without pod or pod-label set\n";
+                say "error: use of sync.to without pod or pod-label set";
                 exit 1;
             }
 
             if ($pod && $pod_label) {
-                say "error: use of both pod and pod-label is not allowed\n";
+                say "error: use of both pod and pod-label is not allowed";
                 exit 1;
             }
 
             if ($to && !$shell) {
-                say "error: use of sync.to without shell set\n";
+                say "error: use of sync.to without shell set";
                 exit 1;
             }
 
             my @resolved_froms = ();
             foreach my $from ( @froms ) {
                 if (substr($from, 0, 1) ~~ ["/", "\\"]) {
-                    say "error: use of absolute path in sync.from is not allowed\n";
+                    say "error: use of absolute path in sync.from is not allowed";
                     exit 1;
                 }
                 my $file = "$base/$from";
@@ -195,23 +228,15 @@ switch($command) {
         }
 
         # The child process will watch for file changes
-        say "Watching files...";
-        my $command = "fswatch " . join(" ", @watches) . " \\
-    -r \\
-    --event Created \\
-    --event Updated \\
-    --event Removed \\
-    --event Renamed \\
-    --event MovedFrom \\
-    --event MovedTo \\
-    --event OwnerModified \\
-    --event AttributeModified \\
-| xargs -I {} kubycat sync {} --KUBYCAT_PID=$$ &";
-        say $command;
+        say "watching files...\n";
+        $fswatch_command = "fswatch " . join(" ", @watches) . " /KUBYCAT_PID=$$ -r --event Created --event Updated --event Removed --event Renamed --event MovedFrom --event MovedTo --event OwnerModified --event AttributeModified";
+        my $command = $fswatch_command . " | xargs -I {} kubycat sync {} &";
+        say "$command\n";
         system($command);
 
 
         # The parent process will start a server to listen for sync requests
+        say "starting server...\n";
         my $socket = new IO::Socket::INET (
             LocalHost => 'localhost',
             LocalPort => $port,
@@ -222,35 +247,58 @@ switch($command) {
         die "error: failed to start server on port $port" unless $socket;
 
         # wait for connections
-        print "listening to localhost on port $port...\n";
+        say "listening to localhost on port $port\n";
+
+        say "waiting for file changes...";
+        say $header;
+        say "| command | action |                        file                        |   status   |";
+        say $header;
+
         while (1) {
             my $new_socket = $socket->accept();
             while(<$new_socket>)
             {
                 my $file = $_;
+                my $command_name = pad_string("SYNC", 9);
+                my $command_action;
+                my $command_status;
+
+
+                if (length($file) > 52) {
+                    $file = "..." . substr($file, -49);
+                }
+                my $command_file = pad_string($file, 52);
+
+
                 my %sync = get_sync($file);
                 if (!%sync) {
-                    say "warning: could not find sync for file $file\n";
+                    $command_action = pad_string("NONE", 8);
+                    $command_status = pad_string("NO_SYNC", 12);
+                    say_status($command_name, $command_action, $command_file, $command_status);
                     next;
                 }
 
                 my $status = get_file_status($file);
                 if ($status eq 'UNCHANGED') {
-                    say "UNCHANGED:$file";
+                    $command_action = pad_string("NONE", 8);
+                    $command_status = pad_string("NO_CHANGE", 12);
+                    say_status($command_name, $command_action, $command_file, $command_status);
                     next;
                 }
-
-                say "CHANGED:$file";
 
                 my $to = $sync{"to"};
                 my $remote_file;
                 if ($to) {
                     if ($status eq 'DELETED') {
-                        say "SYNC-DELETE:$file";
-                        $remote_file =delete_file($file, { %sync });
+                        $command_action = pad_string("DELETE", 8);
+                        $remote_file = delete_file($file, { %sync });
+                        $command_status = pad_string("SUCCESS", 12);
+                        say_status($command_name, $command_action, $command_file, $command_status);
                     } else {
-                        say "SYNC-UPDATE:$file";
+                        $command_action = pad_string("COPY", 8);
                         $remote_file = copy_file($file, { %sync });
+                        $command_status = pad_string("SUCCESS", 12);
+                        say_status($command_name, $command_action, $command_file, $command_status);
                     }
                 }
 
@@ -259,34 +307,40 @@ switch($command) {
                 my $post_sync_local = $sync{"post-sync-local"};
 
                 if ($post_sync_remote && $to && $remote_file) {
-                    say "POST-SYNC-REMOTE:$file";
                     my $kubectl = get_kubectl_delete_command(%sync);
                     my @pods = get_pods(%sync);
                     foreach my $pod (@pods) {
                         my $command = "$kubectl $pod -- $post_sync_remote";
                         $command =~ s|{synced_file}|$remote_file|g;
-                        say "$command\n";
                         system($command);
+                        say_status(
+                            pad_string("REMOTE", 9),
+                            pad_string("EXEC", 8),
+                            pad_string($post_sync_remote, 52),
+                            pad_string("SUCCESS", 12)
+                        );
                     }
                 }
 
                 if ($post_sync_local) {
                     if ($post_sync_local eq "kubycat::exit") {
-                        say "exiting kubycat...";
                         kubycat_exit(0);
                     }
-                    say "POST-SYNC-LOCAL:$file";
                     my $command = $post_sync_local;
                     $command =~ s|{synced_file}|$file|g;
-                    say "$command\n";
                     system($post_sync_local);
+                    say_status(
+                        pad_string("LOCAL", 9),
+                        pad_string("EXEC", 8),
+                        pad_string($post_sync_local, 52),
+                        pad_string("SUCCESS", 12)
+                    );
                 }
             }
         }
     }
     case "sync" {
         my $file = $ARGV[1];
-        say "SYNC:$file";
         my $socket = new IO::Socket::INET (
             PeerAddr => 'localhost',
             PeerPort => $port,
@@ -308,6 +362,17 @@ switch($command) {
 
 sub help {
     say "usage: kubycat.pl watch|sync [options]";
+}
+
+sub say_status {
+    my ($command_name, $command_action, $command_file, $command_status) = @_;
+    say "|$command_name|$command_action|$command_file|$command_status|";
+}
+
+sub pad_string {
+    my ($string, $length) = @_;
+    my $padding = $length - length($string);
+    return (' ' x ($padding / 2)) . $string . (' ' x ($padding / 2) . (' ' x ($padding % 2)));
 }
 
 sub get_kubectl_delete_command {
@@ -376,7 +441,6 @@ sub get_pods {
         return ($pod);
     } else {
         my $command = get_kubectl_pods_command(%sync);
-        say "$command\n";
         my @pods = `$command`;
         chomp @pods;
         return @pods;
@@ -396,7 +460,6 @@ sub delete_file {
     my @pods = get_pods(%sync);
     foreach my $pod (@pods) {
         my $command = "$kubectl $pod -- $shell -c \"rm -Rf $remote_file\"";
-        say "$command\n";
         system($command);
     }
 }
@@ -414,7 +477,6 @@ sub copy_file {
     my @pods = get_pods(%sync);
     foreach my $pod (@pods) {
         my $command = "$kubectl $file $namespace/$pod:$remote_file";
-        say "$command\n";
         system($command);
     }
     return $remote_file;
