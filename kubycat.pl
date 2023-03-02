@@ -150,6 +150,7 @@ switch($command) {
             my $pod = $sync_config{"pod"};
             my $pod_label = $sync_config{"pod-label"};
             my $shell = $sync_config{"shell"};
+            my $notify = $sync_config{"notify"};
 
             if (!$namespace && $kube_global_namespace) {
                 $namespace = $kube_global_namespace;
@@ -196,6 +197,11 @@ switch($command) {
 
             if ($to && !$shell) {
                 say "error: use of sync.to without shell set";
+                exit 1;
+            }
+
+            if ($notify && $notify ne "notify-send" && $notify ne "display notification") {
+                say "error: use of sync.notify with invalid value (must be 'notify-send' or 'display notification')";
                 exit 1;
             }
 
