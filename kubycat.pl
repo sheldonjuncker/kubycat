@@ -8,56 +8,36 @@ use IO::Socket;
 use Digest::MD5 qw(md5);
 use File::Slurp;
 use Data::Dump qw(dump);
+use File::Basename;
 
 my $header = "+---------+--------+----------------------------------------------------+------------+";
 
 my $fswatch_command;
 
-
 $SIG{TERM} = sub { kubycat_exit(0); };
+
+# get the location of the currently executing script
+my $script_path = dirname(__FILE__);
+my $kubycat_command = "$script_path/kubycat";
 
 sub kubycat_exit {
     my $status = shift;
     # Kill all child processes and wait for them to exit
-    say_status(
-        pad_string("KUBYCAT", 9),
-        pad_string("EXIT", 8),
-        pad_string("Received SIGTERM and stopping services...", 52),
-        pad_string("EXITING", 12)
-    );
+    say_status("KUBYCAT", "EXIT","Received SIGTERM and stopping services...", "EXITING");
     # get the PID based on the KUBYCAT_PID flag
-    say_status(
-        pad_string("FSWATCH", 9),
-        pad_string("EXIT", 8),
-        pad_string("Shutting down fswatch daemon...", 52),
-        pad_string("EXITING", 12)
-    );
+    say_status("FSWATCH", "EXIT", "Shutting down fswatch daemon...", "EXITING");
     my $find_fswatch = "pgrep -a fswatch | grep -oP \"\\K([0-9]+)(?=.+" . quotemeta($fswatch_command) . ")\"";
+    say "| $find_fswatch";
     my $fswatch_pid = `$find_fswatch`;
     chomp($fswatch_pid);
     if ($fswatch_pid) {
+        say "| kill $fswatch_pid";
         system("kill $fswatch_pid");
-        say_status(
-            pad_string("FSWATCH", 9),
-            pad_string("EXIT", 8),
-            pad_string("Shutting down fswatch daemon...", 52),
-            pad_string("SUCCESS", 12)
-        );
+        say_status("FSWATCH", "EXIT", "Shutting down fswatch daemon...", "SUCCESS");
     } else {
-        say_status(
-            pad_string("FSWATCH", 9),
-            pad_string("EXIT", 8),
-            pad_string("Shutting down fswatch daemon...", 52),
-            pad_string("NO_DAEMON", 12)
-        );
+        say_status("FSWATCH", "EXIT", "Shutting down fswatch daemon...", "NO_DAEMON");
     }
-    say_status(
-        pad_string("KUBYCAT", 9),
-        pad_string("EXIT", 8),
-        pad_string("Received SIGTERM and stopping services...", 52),
-        pad_string("SUCCESS", 12)
-    );
-    say $header;
+    say_status("KUBYCAT", "EXIT", "Shutting down kubycat daemon...", "SUCCESS");
     exit $status;
 };
 
@@ -130,8 +110,14 @@ sub get_file_status {
         # (note: ctime can actually change without contents/metadata really changing
         # i.e. when a file is saved with the same contents, it's technically "modified" and "changed")
         my $ctime = $file_stat[10];
-        my $data = read_file($file);
-        my $digest = md5($data . $ctime);
+        my $digest;
+        if ($file_stat[2] & 0040000) {
+            # if the file is a directory, we can't really read it's contents so just use the ctime
+            $digest = md5($ctime);
+        } else {
+            my $data = read_file($file);
+            $digest = md5($data . $ctime);
+        }
         my $old_digest = $file_digests{$file};
         if ($old_digest && $digest && $old_digest eq $digest) {
             return 'UNCHANGED';
@@ -230,7 +216,7 @@ switch($command) {
         # The child process will watch for file changes
         say "watching files...\n";
         $fswatch_command = "fswatch " . join(" ", @watches) . " /KUBYCAT_PID=$$ -r --event Created --event Updated --event Removed --event Renamed --event MovedFrom --event MovedTo --event OwnerModified --event AttributeModified";
-        my $command = $fswatch_command . " | xargs -I {} kubycat sync {} &";
+        my $command = $fswatch_command . " | xargs -I {} $kubycat_command sync {} &";
         say "$command\n";
         system($command);
 
@@ -259,19 +245,15 @@ switch($command) {
             while(<$new_socket>)
             {
                 my $file = $_;
-                my $command_name = pad_string("SYNC", 9);
+                my $command_name = "SYNC";
                 my $command_action;
                 my $command_status;
                 my $command_file = $file;
 
                 my %sync = get_sync($file);
                 if (!%sync) {
-                    $command_action = pad_string("NONE", 8);
-                    $command_status = pad_string("NO_SYNC", 12);
-                    if (length($command_file) > 52) {
-                        $command_file = "..." . substr($command_file, -49);
-                    }
-                    my $command_file = pad_string($command_file, 52);
+                    $command_action = "NONE";
+                    $command_status = "NO_SYNC";
                     say_status($command_name, $command_action, $command_file, $command_status);
                     next;
                 }
@@ -279,15 +261,11 @@ switch($command) {
                 my $base = $sync{"base"};
                 $command_file = substr($command_file, length($base) + 1);
                 $command_file = $sync{"name"} . ":$command_file";
-                if (length($command_file) > 52) {
-                    $command_file = "..." . substr($command_file, -49);
-                }
-                my $command_file = pad_string($command_file, 52);
 
                 my $status = get_file_status($file);
                 if ($status eq 'UNCHANGED') {
-                    $command_action = pad_string("NONE", 8);
-                    $command_status = pad_string("NO_CHANGE", 12);
+                    $command_action = "NONE";
+                    $command_status = "NO_CHANGE";
                     say_status($command_name, $command_action, $command_file, $command_status);
                     next;
                 }
@@ -295,16 +273,19 @@ switch($command) {
                 my $to = $sync{"to"};
                 my $remote_file;
                 if ($to) {
+                    my @sync_result;
                     if ($status eq 'DELETED') {
-                        $command_action = pad_string("DELETE", 8);
-                        $remote_file = delete_file($file, { %sync });
-                        $command_status = pad_string("SUCCESS", 12);
-                        say_status($command_name, $command_action, $command_file, $command_status);
+                        $command_action = "DELETE";
+                        @sync_result = delete_file($file, { %sync });
                     } else {
-                        $command_action = pad_string("COPY", 8);
-                        $remote_file = copy_file($file, { %sync });
-                        $command_status = pad_string("SUCCESS", 12);
-                        say_status($command_name, $command_action, $command_file, $command_status);
+                        $command_action = "COPY";
+                        @sync_result = copy_file($file, { %sync });
+                    }
+                    my $remote_file = $sync_result[1];
+                    say_status($command_name, $command_action, $command_file, $sync_result[0] ? "FAILURE" : "SUCCESS");
+                    if ($sync_result[0]) {
+                        # send desktop notification
+                        say "| " . pad_string("culprit: " . $sync_result[2], length($header) - 13) . " |";
                     }
                 }
 
@@ -318,13 +299,9 @@ switch($command) {
                     foreach my $pod (@pods) {
                         my $command = "$kubectl $pod -- $post_sync_remote";
                         $command =~ s|{synced_file}|$remote_file|g;
-                        system($command);
-                        say_status(
-                            pad_string("REMOTE", 9),
-                            pad_string("EXEC", 8),
-                            pad_string($post_sync_remote, 52),
-                            pad_string("SUCCESS", 12)
-                        );
+                        print "| ";
+                        my $result = system($command);
+                        say_status("REMOTE", "EXEC", $post_sync_remote, $result == 0 ? "SUCCESS" : "FAILURE");
                     }
                 }
 
@@ -334,13 +311,9 @@ switch($command) {
                     }
                     my $command = $post_sync_local;
                     $command =~ s|{synced_file}|$file|g;
-                    system($post_sync_local);
-                    say_status(
-                        pad_string("LOCAL", 9),
-                        pad_string("EXEC", 8),
-                        pad_string($post_sync_local, 52),
-                        pad_string("SUCCESS", 12)
-                    );
+                    print "| ";
+                    my $result = system($post_sync_local);
+                    say_status("LOCAL", "EXEC", $post_sync_local, $result == 0 ? "SUCCESS" : "FAILURE");
                 }
             }
         }
@@ -351,7 +324,7 @@ switch($command) {
             PeerAddr => 'localhost',
             PeerPort => $port,
             Proto => 'tcp',
-            Timeout => 3,
+            Timeout => 30,
         );
         die "error: failed to connect to server on port $port" unless $socket;
         print $socket $file;
@@ -372,7 +345,16 @@ sub help {
 
 sub say_status {
     my ($command_name, $command_action, $command_file, $command_status) = @_;
+    # pad things
+    $command_name = pad_string($command_name, 9);
+    $command_action = pad_string($command_action, 8);
+    if (length($command_file) > 52) {
+        $command_file = "..." . substr($command_file, -49);
+    }
+    $command_file = pad_string($command_file, 52);
+    $command_status = pad_string($command_status, 12);
     say "|$command_name|$command_action|$command_file|$command_status|";
+    say $header;
 }
 
 sub pad_string {
@@ -447,8 +429,25 @@ sub get_pods {
         return ($pod);
     } else {
         my $command = get_kubectl_pods_command(%sync);
-        my @pods = `$command`;
+        say "| $command";
+        my @pods = `$command 2>&1`;
         chomp @pods;
+
+       # make sure each element of the array is a pod
+       my $status = 0;
+        foreach my $pod (@pods) {
+            if ($pod !~ /^[a-z0-9]([a-z0-9\-\.]*[a-z0-9])*$/) {
+                $status = 1;
+                last;
+            }
+        }
+
+        if ($status) {
+            my $error = pop @pods;
+            say "| error: failed to get pods from kubectl";
+            say "|   msg: $error";
+            kubycat_exit(1);
+        }
         return @pods;
     }
 }
@@ -466,8 +465,13 @@ sub delete_file {
     my @pods = get_pods(%sync);
     foreach my $pod (@pods) {
         my $command = "$kubectl $pod -- $shell -c \"rm -Rf $remote_file\"";
-        system($command);
+        say "| $command";
+        my $result = system($command);
+        if ($result) {
+            return (1, $remote_file, $command);
+        }
     }
+    return (0, $remote_file, "");
 }
 
 sub copy_file {
@@ -483,9 +487,13 @@ sub copy_file {
     my @pods = get_pods(%sync);
     foreach my $pod (@pods) {
         my $command = "$kubectl $file $namespace/$pod:$remote_file";
-        system($command);
+        say "| $command";
+        my $result = system($command);
+        if ($result) {
+            return (1, $remote_file, $command);
+        }
     }
-    return $remote_file;
+    return (0, $remote_file, "");
 }
 
 sub get_sync {
