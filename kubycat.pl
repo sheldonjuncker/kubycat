@@ -26,7 +26,7 @@ sub kubycat_exit {
     say_status("KUBYCAT", "EXIT","Received SIGTERM and stopping services...", "EXITING");
     # get the PID based on the KUBYCAT_PID flag
     say_status("FSWATCH", "EXIT", "Shutting down fswatch daemon...", "EXITING");
-    my $find_fswatch = "ps ax | grep -oP \"\\s*\\K([0-9]+)(?=.+" . quotemeta($fswatch_command) . ")\"";
+    my $find_fswatch = "ps ax | perl -nle 'print \$1 if m/\\s*([0-9]+)(?=.+" . quotemeta($fswatch_command) . ")/'";
     say "| $find_fswatch";
     my @fswatch_matches = `$find_fswatch`;
     my $fswatch_pid = shift @fswatch_matches;
