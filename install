@@ -109,9 +109,6 @@ sed -i.bak "s/\$VERSION/$VERSION/" kubycat.service.tmp
 # replace the install path
 sed -i.bak "s|\$INSTALL_PATH|$install_path|" kubycat.service.tmp
 
-# replace the user with the current user
-sed -i.bak "s/\$USER/$USER/g" kubycat.service.tmp
-
 # replace the config file
 sed -i.bak "s|\$CONFIG_FILE|$config_path/config.yaml|" kubycat.service.tmp
 

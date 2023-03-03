@@ -236,7 +236,10 @@ switch($command) {
             Listen => 1,
             Reuse => 1,
         );
-        die "error: failed to start server on port $port" unless $socket;
+        if (!$socket) {
+            say "error: failed to start server on port $port";
+            kubycat_exit(1);
+        }
 
         # wait for connections
         say "listening to localhost on port $port\n";
@@ -291,7 +294,17 @@ switch($command) {
                     say_status($command_name, $command_action, $command_file, $sync_result[0] ? "FAILURE" : "SUCCESS");
                     if ($sync_result[0]) {
                         # send desktop notification
-                        say "| " . pad_string("culprit: " . $sync_result[2], length($header) - 13) . " |";
+                        if ($sync{"notify"}) {
+                            notify_desktop("Failed to sync file", $command_action . " - " . $command_file . "\n" . $sync_result[2], "critical", $sync{"notify"});
+                        }
+                        my $on_error = $sync{"on-sync-error"};
+                        if ($on_error eq "ignore") {
+                            next;
+                        } elsif ($on_error eq "reload") {
+                            kubycat_exit(0);
+                        } else {
+                            kubycat_exit(1);
+                        }
                     }
                 }
 
@@ -308,11 +321,29 @@ switch($command) {
                         print "| ";
                         my $result = system($command);
                         say_status("REMOTE", "EXEC", $post_sync_remote, $result == 0 ? "SUCCESS" : "FAILURE");
+
+                        if ($result) {
+                            if ($sync{"notify"}) {
+                                notify_desktop("Failed to execute remote post-sync command", $command, "normal", $sync{"notify"});
+                            }
+                            my $on_error = $sync{"on-post-sync-error"};
+                            if ($on_error eq "ignore") {
+                                next;
+                            } elsif ($on_error eq "reload") {
+                                kubycat_exit(0);
+                            } else {
+                                kubycat_exit(1);
+                            }
+                        }
                     }
                 }
 
                 if ($post_sync_local) {
                     if ($post_sync_local eq "kubycat::exit") {
+                        # exit and do not restart
+                        kubycat_exit(1);
+                    } elsif ($post_sync_local eq "kubycat::reload") {
+                        # exit and restart (only in service mode)
                         kubycat_exit(0);
                     }
                     my $command = $post_sync_local;
@@ -320,6 +351,19 @@ switch($command) {
                     print "| ";
                     my $result = system($post_sync_local);
                     say_status("LOCAL", "EXEC", $post_sync_local, $result == 0 ? "SUCCESS" : "FAILURE");
+                    if ($result) {
+                        if ($sync{"notify"}) {
+                            notify_desktop("Failed to execute remote post-sync command", $command, "normal", $sync{"notify"});
+                        }
+                        my $on_error = $sync{"on-post-sync-error"};
+                        if ($on_error eq "ignore") {
+                            next;
+                        } elsif ($on_error eq "reload") {
+                            kubycat_exit(0);
+                        } else {
+                            kubycat_exit(1);
+                        }
+                    }
                 }
             }
         }
@@ -469,7 +513,14 @@ sub get_pods {
             if ($sync{"notify"}) {
                 notify_desktop("Failed to get pods from kubectl", $error, "critical", $sync{"notify"});
             }
-            kubycat_exit(1);
+            my $on_error = $sync{"on-sync-error"};
+            if ($on_error eq "ignore") {
+                return ();
+            } elsif ($on_error eq "reload") {
+                kubycat_exit(0);
+            } else {
+                kubycat_exit(1);
+            }
         }
         return @pods;
     }
@@ -494,7 +545,7 @@ sub delete_file {
             return (1, $remote_file, $command);
         }
     }
-    return (0, $remote_file, "");
+    return (@pods == 0, $remote_file, "");
 }
 
 sub copy_file {
@@ -516,7 +567,7 @@ sub copy_file {
             return (1, $remote_file, $command);
         }
     }
-    return (0, $remote_file, "");
+    return (@pods == 0, $remote_file, "");
 }
 
 sub get_sync {

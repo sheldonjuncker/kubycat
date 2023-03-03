@@ -14,10 +14,9 @@ kubycat:
     - name: test
       # The base directory to sync from
       base: /home/johndoe/test/
+      # Overridden Kubernetes options
       config: /home/johndoe/.kube/do-sfo3-k8s-johndoe
       context: do-sfo3-k8s-johndoe
-      # The Kubernetes namespace to use
-      # leave blank to use the global namespace
       namespace: other
       # The file paths to sync
       # Note that all syncing is done recursively
@@ -34,6 +33,15 @@ kubycat:
       pod-label: key=value
       # The shell command to run in the container for deleting files
       shell: /bin/sh
+      # Allows Kubycat to send desktop notifications on errors
+      notify: notify-send # linux
+      # notify: display notification # mac os
+      # what to do on an error when executing a sync (or related command)
+      # can be one of: exit (default), reload, ignore
+      on-sync-error: exit
+      # what to do on an error when executing a local or remote command
+      # can be one of: exit (default), reload, ignore
+      on-post-sync-error: exit
     - name: composer
       base: /home/johndoe/test/
       namespace: other
