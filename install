@@ -105,7 +105,8 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   echo "Installing the kubycat service via launchd..."
   cp kubycat.plist kubycat.plist.tmp
   # replace the config file
-  sed -i.bak "s|\$CONFIG_FILE|$config_path/config.yaml|" kubycat.service.tmp
+  sed -i.bak "s|\$CONFIG_FILE|$config_path/config.yaml|" kubycat.plist.tmp
+  sed -i.bak "s/\$VERSION/$VERSION/" kubycat.plist.tmp
   rm kubycat.plist.tmp.bak
   # copy the kubycat.plist file to the launchd directory
   sudo cp kubycat.plist.tmp /Library/LaunchDaemons/kubycat.plist
