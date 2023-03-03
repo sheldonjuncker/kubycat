@@ -91,7 +91,7 @@ echo ""
 
 
 # Ask if the user wants to install the kubycat service
-echo -n "Install Kubycat as a systemd service:  (y/n) "
+echo -n "Install Kubycat as a service:  (y/n) "
 read -r install_service
 if [ "$install_service" != "y" ]; then
     echo "OK -- service not installed."
@@ -99,36 +99,56 @@ if [ "$install_service" != "y" ]; then
     exit 0
 fi
 
-# update the kubycat.service file with the current user
-echo "Installing the kubycat service via systemd..."
-cp kubycat.service kubycat.service.tmp
+# if linux, install the systemd service
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  # installing the launchd service
+  echo "Installing the kubycat service via launchd..."
+  cp kubycat.plist kubycat.plist.tmp
+  # replace the config file
+  sed -i.bak "s|\$CONFIG_FILE|$config_path/config.yaml|" kubycat.service.tmp
+  rm kubycat.plist.tmp.bak
+  # copy the kubycat.plist file to the launchd directory
+  sudo cp kubycat.plist.tmp /Library/LaunchDaemons/kubycat.plist
+  rm kubycat.plist.tmp
+  # enable the service
+  sudo launchctl load /Library/LaunchDaemons/kubycat.plist
+  # start the service
+  sudo launchctl start kubycat
+  # get the status
+  sudo launchctl list | grep kubycat
+  echo "OK -- installation complete."
+else
+  # update the kubycat.service file with the current user
+  echo "Installing the kubycat service via systemd..."
+  cp kubycat.service kubycat.service.tmp
 
-# replace the version
-sed -i.bak "s/\$VERSION/$VERSION/" kubycat.service.tmp
+  # replace the version
+  sed -i.bak "s/\$VERSION/$VERSION/" kubycat.service.tmp
 
-# replace the install path
-sed -i.bak "s|\$INSTALL_PATH|$install_path|" kubycat.service.tmp
+  # replace the install path
+  sed -i.bak "s|\$INSTALL_PATH|$install_path|" kubycat.service.tmp
 
-# replace the config file
-sed -i.bak "s|\$CONFIG_FILE|$config_path/config.yaml|" kubycat.service.tmp
+  # replace the config file
+  sed -i.bak "s|\$CONFIG_FILE|$config_path/config.yaml|" kubycat.service.tmp
 
-rm kubycat.service.tmp.bak
+  rm kubycat.service.tmp.bak
 
-# copy the kubycat.service file to the systemd directory
-sudo cp kubycat.service.tmp /etc/systemd/user/kubycat.service
-rm kubycat.service.tmp
+  # copy the kubycat.service file to the systemd directory
+  sudo cp kubycat.service.tmp /etc/systemd/user/kubycat.service
+  rm kubycat.service.tmp
 
-# enable the service
-systemctl --user enable kubycat
+  # enable the service
+  systemctl --user enable kubycat
 
-# reload the systemd daemon
-systemctl --user daemon-reload
+  # reload the systemd daemon
+  systemctl --user daemon-reload
 
-# start the service
-systemctl --user start kubycat
-echo "OK -- service installed."
+  # start the service
+  systemctl --user start kubycat
+  echo "OK -- service installed."
 
-# done
-echo "Getting kubycat status..."
-systemctl --user status kubycat
-echo "OK -- installation complete."
+  # done
+  echo "Getting kubycat status..."
+  systemctl --user status kubycat
+  echo "OK -- installation complete."
+fi
