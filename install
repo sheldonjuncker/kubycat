@@ -105,18 +105,33 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   echo "Installing the kubycat service via launchd..."
   cp kubycat.plist kubycat.plist.tmp
   # replace the config file
+  echo "Replacing the config file with $config_path/config.yaml"
   sed -i.bak "s|\$CONFIG_FILE|$config_path/config.yaml|" kubycat.plist.tmp
+  # replace the version
+  echo "Replacing the version with $VERSION"
   sed -i.bak "s/\$VERSION/$VERSION/" kubycat.plist.tmp
+  echo "removing the backup file"
   rm kubycat.plist.tmp.bak
+
   # copy the kubycat.plist file to the launchd directory
+  echo "Copying the kubycat.plist file to /Library/LaunchDaemons/"
   sudo cp kubycat.plist.tmp /Library/LaunchDaemons/kubycat.plist
+
+  echo "Removing the temporary file"
   rm kubycat.plist.tmp
+
   # enable the service
+  echo "Enabling the kubycat service"
   sudo launchctl load /Library/LaunchDaemons/kubycat.plist
+
   # start the service
+  echo "Starting the kubycat service"
   sudo launchctl start kubycat
+
   # get the status
+  echo "Checking the status of the kubycat service"
   sudo launchctl list | grep kubycat
+  
   echo "OK -- installation complete."
 else
   # update the kubycat.service file with the current user
