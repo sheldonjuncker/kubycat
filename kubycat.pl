@@ -439,7 +439,7 @@ sub notify_desktop {
     my ($description, $error, $level, $notify_type) = @_;
     my $command;
     if ($notify_type eq "notify-send") {
-        $command = "notify-send -u $level -a Kubycat -c error 'Kubycat Error' '$description\n <p><i>$error</i></p>'";
+        $command = "notify-send -u normal -a Kubycat -c error 'Kubycat Error' '$description\n <p><i>$error</i></p>'";
     } elsif ($notify_type eq "display notification") {
         $command = "osascript -e 'display notification \"$description:\n$error\" with title \"Kubycat\" subtitle \"Kubycat Error\"'";
     } else {
