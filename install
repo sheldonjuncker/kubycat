@@ -131,7 +131,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   # get the status
   echo "Checking the status of the kubycat service"
   sudo launchctl list | grep kubycat
-  
+
   echo "OK -- installation complete."
 else
   # update the kubycat.service file with the current user
