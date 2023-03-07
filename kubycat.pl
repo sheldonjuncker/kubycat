@@ -138,6 +138,8 @@ switch($command) {
 
         # Start Watching
         my @watches = ();
+        my @exclusions = ();
+        my @inclusions = ();
         foreach ( @syncs ) {
             my %sync_config = %$_;
             my $name = $sync_config{"name"};
@@ -146,6 +148,8 @@ switch($command) {
             my $kube_config = $sync_config{"config"};
             my $kube_context = $sync_config{"context"};
             my @froms = @{$sync_config{"from"}};
+            my @excluding = $sync_config{"excluding"} ? @{$sync_config{"excluding"}} : ();
+            my @including = $sync_config{"including"} ? @{$sync_config{"including"}} : ();
             my $to = $sync_config{"to"};
             my $pod = $sync_config{"pod"};
             my $pod_label = $sync_config{"pod-label"};
@@ -217,11 +221,29 @@ switch($command) {
             }
             $sync_config{"from"} = [@resolved_froms];
             push(@resolved_syncs, { %sync_config });
+
+            foreach my $exclusion ( @excluding ) {
+                push (@exclusions, "\"$exclusion\"");
+            }
+            foreach my $inclusion ( @including ) {
+                push (@inclusions, "\"$inclusion\"");
+            }
         }
 
         # The child process will watch for file changes
         say "watching files...\n";
-        $fswatch_command = "fswatch " . join(" ", @watches) . " /KUBYCAT_PID=$$ -r --event Created --event Updated --event Removed --event Renamed --event MovedFrom --event MovedTo --event OwnerModified --event AttributeModified";
+
+        my $exclusionFlag = "";
+        if (@exclusions) {
+            $exclusionFlag = " -Ee " . join(" -Ee ", @exclusions);
+        }
+
+        my $inclusionFlag = "";
+        if (@inclusions) {
+            $inclusionFlag = " -Ei " . join(" -Ei ", @inclusions);
+        }
+
+        $fswatch_command = "fswatch " . join(" ", @watches) . $exclusionFlag . $inclusionFlag . " /KUBYCAT_PID=$$ -r --event Created --event Updated --event Removed --event Renamed --event MovedFrom --event MovedTo --event OwnerModified --event AttributeModified";
         my $command = $fswatch_command . " | xargs -I {} $kubycat_command sync {} &";
         say "$command\n";
         system($command);

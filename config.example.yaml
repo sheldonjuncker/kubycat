@@ -26,6 +26,11 @@ kubycat:
         - index.php
       # The remote directory to sync into
       to: /remote/server
+      # File pattern exclusions
+      excluding:
+        - .+~$
+      including:
+        - .+\.php$
       # The Kubernetes pod to sync into
       pod: pod-name
       # The Kubernetes pod label to use for finding the pod(s) to sync into
