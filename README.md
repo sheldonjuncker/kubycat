@@ -1,7 +1,8 @@
+<a href="https://www.buymeacoffee.com/sheldonjuncker" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width=150 height=40></a>
+
 [View Kubycat on GitHub](https://github.com/sheldonjuncker/kubycat)
 
 <img src="https://kubycat.info/kubycat.svg" alt="Kubycat" width="75" style="float: right" align="right" />
-
 
 # kubycat 
 A small library for the watching and automated syncing of files into a local or remote Kubernetes cluster.
@@ -316,4 +317,5 @@ I'd be more than happy to accept pull requests for any of these features or bug 
 ## License
 MIT
 
+<a href="https://www.buymeacoffee.com/sheldonjuncker" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width=150 height=40></a>
 
