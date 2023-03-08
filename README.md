@@ -9,7 +9,7 @@ A small library for the watching and automated syncing of files into a local or 
 
 ```perl
 my $name = kubycat
-my $version = 0.1.3
+my $version = 0.1.6
 my $author = Sheldon Juncker <sheldon@dreamcloud.app>
 my $github = https://github.com/sheldonjuncker/kubycat
 my $license = MIT
@@ -139,13 +139,13 @@ if otherwise.
 
 If you installed kubycat as a service you might also want to test that it is running:
 ```bash
-$ sudo systemctl status kubycat
+$ sudo systemctl --user status kubycat
 ```
 
 ## Configuration
 Kubycat is configured via a YAML file which by default is located at `/etc/kubycat/config.yaml` but may differ depending on your installation.
 
-The source code contains this sample configuration providing a brief overview of each available option.
+The source code contains this sample configuration providing a brief overview of each available option. More detailed documentation is provided below.
 ```yaml
 kubycat:
   config: /home/johndoe/.kube/config
@@ -155,19 +155,35 @@ kubycat:
   sync:
     - name: test
       base: /home/johndoe/test/
+      config: /home/johndoe/.kube/do-sfo3-k8s-johndoe
+      context: do-sfo3-k8s-johndoe
       namespace: other
-      config: /home/johndoe/.kube/config
-      context: do-sfo1-k8s-cluster
       from:
         - src
         - config
         - index.php
       to: /remote/server
+      excluding:
+        - .+~$
+      including:
+        - .+\.php$
       pod: pod-name
       pod-label: key=value
       shell: /bin/sh
-      post-sync-remote: /bin/sh -c "composer  update --working-dir=/remote/server"
-      post-sync-local: echo "Synced {synced_file}!" >> /home/johndoe/test/sync.log
+      notify: notify-send
+      on-sync-error: exit
+      on-post-sync-error: exit
+    - name: composer
+      base: /home/johndoe/test/
+      namespace: other
+      from:
+        - composer.json
+        - composer.lock
+      to: /remote/server
+      pod-label: key=value
+      shell: /bin/sh
+      post-sync-local: composer update
+      post-sync-remote: /bin/sh -c "composer install"
 ```
 
 ### kubycat
@@ -210,6 +226,42 @@ The `kubycat.sync.context` option specifies the Kubernetes context to use for th
 ### kubycat.sync.from
 The `kubycat.sync.from` option is a list of files and/or folders to sync from the `base` directory. This can be a single file or folder or a list of files and folders. Each path must be a relative path from the `base` directory and if a folder will be synced recursively.
 
+### kubycat.sync.excluding
+The `kubycat.sync.excluding` option can be a list of regex file patterns to exclude from syncing. These are applied to the full path of the file being synced. These regexes are case-sensitive by default.
+
+Example to disable syncing for IDE files:
+```yaml
+kubycat:
+  sync:
+    - name:
+      ...
+      from:
+        - src
+      excluding:
+        - .+\.sw[pxo]$
+        - .+~$
+```
+
+### kubycat.sync.including
+The `kubycat.sync.including` option can be a list of regex file patterns to include in syncing. These are applied to the full path of the file being synced. These regexes are case-sensitive by default.
+
+Example to only sync PHP files:
+```yaml
+kubycat:
+  sync:
+    - name: php-only
+      from:
+      - src
+      ...
+      including:
+        - .+\.php$
+```
+
+The logic for inclusion/exclusion works as follows:
+1. By default, any files in the "from" option will be synced.
+2. Any files matching the "excluding" option will be excluded from syncing.
+3. Any files matching the "including" option will be included in syncing regardless of whether they would otherwise be excluded by step 2.
+
 ### kubycat.sync.to
 The `kubycat.sync.to` option specifies the remote path to sync files to. This must be an absolute path.
 
@@ -243,14 +295,14 @@ This might be useful if you only want to sync a one-off change to a pod and then
 
 **_Easter egg_**
 
-Because Kubycat can perform commands on file syncing and file syncing is performed on file changes, you can write a sync config that will cause Kubycat to exit if it sees that it's own configuration YAML file has changed. If you are also running Kubycat as a service, this will cause Kubycat to restart itself and pick up any changes to the configuration file.
+Because Kubycat can perform commands on file syncing and file syncing is performed on file changes, you can write a sync config that will cause Kubycat to reload if it sees that its own configuration YAML file has changed. If you are also running Kubycat as a service, this will cause Kubycat to restart itself and pick up any changes to the configuration file.
 
 ```yaml
 - name: kubycat-config
   base: /etc/kubycat
   from:
     - config.yaml
-  post-sync-local: kubycat::exit
+  post-sync-local: kubycat::reload
 ```
 
 ### kubycat.sync.post-sync-remote
@@ -258,6 +310,24 @@ The `kubycat.sync.post-sync-remote` option specifies a remote command to run in 
 
 
 With both `post-sync-local` and `post-sync-remote` you can use the `{synced_file}`placeholder to specify the path to the local or remote file that was synced. This is useful if you want to run a command on a specific file that was synced.
+
+### kubycat.sync.notify
+The `kubycat.sync.notify` option can be used to send desktop notifications when syncing actions or other commands fail. The values for this option can be `notify-send` for Linux or `display notification` for MAC. On MAC, you may need to enable notifications for the terminal app.
+
+This option is somewhat experimental and may not work on all systems.
+
+### kubycat.sync.on-sync-error
+The `kubycat.sync.on-sync-error` option specifies what to do when a sync fails. The options are `exit`, `reload`, and `ignore`. The default is `exit`.
+
+1. Exit: Kubycat command line or service will stop and not restart.
+2. Reload: Kubycat service will restart, command line will still exit.
+3. Ignore: Kubycat will continue to run as if nothing happened.
+
+### kubycat.sync.on-post-sync-error
+The `kubycat.sync.on-post-sync-error` option specifies what to do when a post-sync command fails. The options are `exit`, `reload`, and `ignore`. The default is `exit`.
+
+This works the same as the above option except that it applies to the local and remote post-syncing actions that Kubycat can be configured to perform when a sync is completed successfully.
+
 
 ## Usage
 While Kubycat can be run as a service, you can also run it manually via the command line via `kubycat [subcommand] [options]`.
@@ -277,7 +347,7 @@ Kubycat will display a list of commands that it is running as the files are sync
 
 In service mode, you can get the tail of the log file by running:
 ```bash
-$ sudo systemctl status kubycat
+$ sudo systemctl --user status kubycat
 ```
 
 ### Manual Syncing
