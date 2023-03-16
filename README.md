@@ -1,3 +1,5 @@
+# This project is no longer maintained -- please use the [Node.js version instead](https://github.com/sheldonjuncker/node-kubycat)
+
 <a href="https://www.buymeacoffee.com/sheldonjuncker" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width=150 height=40></a>
 
 [View Kubycat on GitHub](https://github.com/sheldonjuncker/kubycat)
